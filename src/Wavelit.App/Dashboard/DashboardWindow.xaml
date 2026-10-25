@@ -1,0 +1,89 @@
+<ui:FluentWindow x:Class="Wavelit.App.Dashboard.DashboardWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                 xmlns:vm="clr-namespace:Wavelit.App.Dashboard.ViewModels"
+                 xmlns:views="clr-namespace:Wavelit.App.Dashboard.Views"
+                 Title="Wavelit"
+                 Width="1200" Height="800" MinWidth="880" MinHeight="580"
+                 WindowStartupLocation="CenterScreen"
+                 ExtendsContentIntoTitleBar="True"
+                 WindowBackdropType="Mica"
+                 WindowCornerPreference="Round"
+                 Icon="/Assets/wavelit.ico"
+                 AllowDrop="True"
+                 d:DataContext="{d:DesignInstance vm:MainViewModel}"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 mc:Ignorable="d">
+    <ui:FluentWindow.Resources>
+        <DataTemplate DataType="{x:Type vm:DiscoverViewModel}"><views:DiscoverView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:LibraryViewModel}"><views:LibraryView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:DisplaysViewModel}"><views:DisplaysView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>
+    </ui:FluentWindow.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <ui:TitleBar Grid.Row="0" Title="Wavelit" />
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="232" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Navigation -->
+            <DockPanel Grid.Column="0" Margin="12,4,12,16" LastChildFill="True">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="8,4,0,18">
+                    <Image Source="/Assets/wavelit-256.png" Width="34" Height="34" />
+                    <StackPanel Margin="10,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="Wavelit" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <TextBlock Text="Live wallpapers" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <ui:Button DockPanel.Dock="Bottom" HorizontalAlignment="Stretch" Margin="0,12,0,0"
+                           Content="{Binding PauseLabel}" Command="{Binding TogglePauseCommand}"
+                           Icon="{Binding PauseIcon, Converter={x:Static views:SymbolToIconConverter.Instance}}" />
+
+                <ListBox x:Name="Nav" ItemsSource="{Binding NavItems}" SelectedItem="{Binding SelectedNav}"
+                         Background="Transparent" BorderThickness="0"
+                         KeyboardNavigation.DirectionalNavigation="Cycle" AutomationProperties.Name="Navigation">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:NavItem}">
+                            <StackPanel Orientation="Horizontal" Margin="4,6">
+                                <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="18" />
+                                <TextBlock Text="{Binding Label}" Margin="12,0,0,0" FontSize="14" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+
+            <!-- Page -->
+            <Border Grid.Column="1" CornerRadius="8,0,0,0" BorderThickness="1,1,0,0"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    Background="{DynamicResource LayerFillColorDefaultBrush}">
+                <Grid>
+                    <ContentControl Content="{Binding SelectedNav.Page}" Focusable="False" />
+                    <ui:InfoBar VerticalAlignment="Bottom" Margin="24,0,24,20" IsClosable="True"
+                                IsOpen="{Binding Context.IsNoticeOpen, Mode=TwoWay}"
+                                Title="{Binding Context.NoticeTitle}"
+                                Message="{Binding Context.NoticeMessage}"
+                                Severity="{Binding Context.NoticeLevel, Converter={StaticResource NoticeSeverity}}" />
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</ui:FluentWindow>

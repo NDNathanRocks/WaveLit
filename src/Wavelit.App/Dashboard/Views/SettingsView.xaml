@@ -1,0 +1,214 @@
+<UserControl x:Class="Wavelit.App.Dashboard.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:Wavelit.App.Dashboard.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:SettingsViewModel}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,20,28,80" MaxWidth="900" HorizontalAlignment="Stretch">
+            <TextBlock Text="Settings" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Changes apply instantly." Style="{StaticResource PageSubtitle}" />
+
+            <!-- API keys -->
+            <TextBlock Text="Online libraries (optional, free)" Style="{StaticResource SectionHeader}" />
+            <ui:CardExpander Icon="{ui:SymbolIcon Video24}" IsExpanded="True" Margin="0,0,0,4">
+                <ui:CardExpander.Header>
+                    <StackPanel>
+                        <TextBlock Text="Pexels videos" FontWeight="SemiBold" />
+                        <TextBlock Text="Thousands of free HD and 4K videos." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,8">
+                        1. Create a free account at
+                        <Hyperlink Command="{Binding OpenLinkCommand}" CommandParameter="https://www.pexels.com/api/">pexels.com/api</Hyperlink>.
+                        2. Copy your API key and paste it below. Your key is encrypted and stored only on this PC.
+                    </TextBlock>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:PasswordBox Password="{Binding PexelsKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        PlaceholderText="Pexels API key" AutomationProperties.Name="Pexels API key" />
+                        <ui:Button Grid.Column="1" Margin="8,0,0,0" Appearance="Primary" Content="Save &amp; test"
+                                   Command="{Binding SavePexelsKeyCommand}" />
+                    </Grid>
+                    <TextBlock Margin="0,6,0,0" Text="{Binding PexelsStatus}" Style="{StaticResource Caption}" />
+                </StackPanel>
+            </ui:CardExpander>
+
+            <ui:CardExpander Icon="{ui:SymbolIcon Sparkle24}" IsExpanded="True" Margin="0,0,0,4">
+                <ui:CardExpander.Header>
+                    <StackPanel>
+                        <TextBlock Text="Shadertoy live shaders" FontWeight="SemiBold" />
+                        <TextBlock Text="Real-time GPU art from the Shadertoy community." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,8">
+                        1. Sign in at shadertoy.com and open
+                        <Hyperlink Command="{Binding OpenLinkCommand}" CommandParameter="https://www.shadertoy.com/myapps">shadertoy.com/myapps</Hyperlink>.
+                        2. Create an app key and paste it below. Only shaders their authors share through the API appear in search.
+                    </TextBlock>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:PasswordBox Password="{Binding ShadertoyKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        PlaceholderText="Shadertoy app key" AutomationProperties.Name="Shadertoy API key" />
+                        <ui:Button Grid.Column="1" Margin="8,0,0,0" Appearance="Primary" Content="Save &amp; test"
+                                   Command="{Binding SaveShadertoyKeyCommand}" />
+                    </Grid>
+                    <TextBlock Margin="0,6,0,0" Text="{Binding ShadertoyStatus}" Style="{StaticResource Caption}" />
+                </StackPanel>
+            </ui:CardExpander>
+
+            <!-- Performance -->
+            <TextBlock Text="Performance &amp; battery" Style="{StaticResource SectionHeader}" />
+            <ui:CardControl Icon="{ui:SymbolIcon Games24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Pause when a game or fullscreen app is running" FontWeight="SemiBold" />
+                        <TextBlock Text="Drops Wavelit to near-zero CPU and GPU so your game gets everything." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding PauseOnFullscreen}" AutomationProperties.Name="Pause for fullscreen apps" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Desktop24}" Margin="0,0,0,4" IsEnabled="{Binding PauseOnFullscreen}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="…on every display" FontWeight="SemiBold" />
+                        <TextBlock Text="Also freeze the wallpaper on your other screens while a fullscreen app runs." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding PauseAllDisplaysOnFullscreen}" AutomationProperties.Name="Pause on every display" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon ArrowMaximize24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Pause behind maximized windows" FontWeight="SemiBold" />
+                        <TextBlock Text="When a maximized window hides the desktop, there is nothing to render." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding PauseOnMaximized}" AutomationProperties.Name="Pause behind maximized windows" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Battery024}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Pause on battery" FontWeight="SemiBold" />
+                        <TextBlock Text="Freeze wallpapers while your laptop is unplugged." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding PauseOnBattery}" AutomationProperties.Name="Pause on battery" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon BatterySaver24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Pause when battery saver is on" FontWeight="SemiBold" />
+                        <TextBlock Text="Respects Windows energy saver." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding PauseOnBatterySaver}" AutomationProperties.Name="Pause with battery saver" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Laptop24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Pause during Remote Desktop" FontWeight="SemiBold" />
+                        <TextBlock Text="Animated wallpapers make remote sessions slow." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding PauseOnRemoteSession}" AutomationProperties.Name="Pause during remote desktop" />
+            </ui:CardControl>
+
+            <!-- Quality -->
+            <TextBlock Text="Quality" Style="{StaticResource SectionHeader}" />
+            <ui:CardControl Icon="{ui:SymbolIcon TopSpeed24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Shader frame rate" FontWeight="SemiBold" />
+                        <TextBlock Text="Lower is smoother on battery; most shaders look great at 30." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ComboBox MinWidth="200" ItemsSource="{Binding FpsChoices}" SelectedItem="{Binding SelectedFps}" DisplayMemberPath="Label" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Image24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Shader resolution" FontWeight="SemiBold" />
+                        <TextBlock Text="Rendering below native resolution saves a lot of GPU power." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ComboBox MinWidth="200" ItemsSource="{Binding ScaleChoices}" SelectedItem="{Binding SelectedScale}" DisplayMemberPath="Label" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Video24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Video scaling" FontWeight="SemiBold" />
+                        <TextBlock Text="How videos fit screens with a different shape." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ComboBox MinWidth="200" ItemsSource="{Binding ScalingChoices}" SelectedItem="{Binding SelectedScaling}" DisplayMemberPath="Label" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon ArrowSync24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Seamless loop" FontWeight="SemiBold" />
+                        <TextBlock Text="Crossfades the end of a video into its start so there's no visible jump." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding SmoothLoop}" AutomationProperties.Name="Seamless loop" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Speaker224}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Play sound" FontWeight="SemiBold" />
+                        <TextBlock Text="Off by default. Applies to videos and web pages." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <StackPanel Orientation="Horizontal">
+                    <Slider Width="140" Minimum="0" Maximum="100" Value="{Binding Volume, Delay=300}" IsEnabled="{Binding PlaySound}"
+                            VerticalAlignment="Center" Margin="0,0,12,0" AutomationProperties.Name="Volume" />
+                    <ui:ToggleSwitch IsChecked="{Binding PlaySound}" AutomationProperties.Name="Play sound" />
+                </StackPanel>
+            </ui:CardControl>
+
+            <!-- General -->
+            <TextBlock Text="General" Style="{StaticResource SectionHeader}" />
+            <ui:CardControl Icon="{ui:SymbolIcon Rocket24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Start with Windows" FontWeight="SemiBold" />
+                        <TextBlock Text="Starts quietly in the tray and restores your wallpapers." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding StartWithWindows}" AutomationProperties.Name="Start with Windows" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon ArrowDownload24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Download cache" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding CacheSize, StringFormat='Downloaded videos are kept here so they play offline. {0}.'}" Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox MinWidth="110" ItemsSource="{Binding CacheChoices}" SelectedItem="{Binding SelectedCache}" DisplayMemberPath="Label"
+                              AutomationProperties.Name="Cache size limit" />
+                    <ui:Button Margin="8,0,0,0" Content="Clear" Icon="{ui:SymbolIcon Broom24}" Command="{Binding ClearCacheCommand}" />
+                </StackPanel>
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon DocumentFolder24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Logs" FontWeight="SemiBold" />
+                        <TextBlock Text="Useful when reporting a problem. Logs never contain your API keys." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:Button Content="Open folder" Icon="{ui:SymbolIcon FolderOpen24}" Command="{Binding OpenLogsCommand}" />
+            </ui:CardControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

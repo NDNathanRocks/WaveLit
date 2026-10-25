@@ -1,0 +1,97 @@
+<UserControl x:Class="Wavelit.App.Dashboard.Views.DisplaysView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:Wavelit.App.Dashboard.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:DisplaysViewModel}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="28,20,28,80" MaxWidth="900" HorizontalAlignment="Left">
+            <TextBlock Text="Displays" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Choose how wallpapers are arranged across your screens." Style="{StaticResource PageSubtitle}" />
+
+            <!-- Monitor map -->
+            <Border Margin="0,20,0,0" Padding="16" CornerRadius="8"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <ItemsControl ItemsSource="{Binding Tiles}" Width="648" Height="248" HorizontalAlignment="Center">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <Canvas />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                            <Setter Property="Canvas.Top" Value="{Binding Top}" />
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:DisplayTileViewModel}">
+                            <Button Width="{Binding Width}" Height="{Binding Height}" Padding="10" Command="{Binding ChooseCommand}"
+                                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                    ToolTip="Choose a wallpaper for this display">
+                                <Grid>
+                                    <StackPanel VerticalAlignment="Top">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Resolution}" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <StackPanel VerticalAlignment="Bottom">
+                                        <TextBlock Text="{Binding WallpaperTitle}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Status}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+            <TextBlock Margin="2,8,0,0" Style="{StaticResource Caption}"
+                       Text="Click a display to pick its wallpaper. Arrangement matches Windows display settings." />
+
+            <TextBlock Text="Arrangement" Style="{StaticResource SectionHeader}" />
+            <ui:CardControl Icon="{ui:SymbolIcon Copy24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Same on every display" FontWeight="SemiBold" />
+                        <TextBlock Text="Each display shows the same wallpaper at its own resolution." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <RadioButton GroupName="Layout" IsChecked="{Binding IsDuplicate}" AutomationProperties.Name="Same on every display" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Grid24}" Margin="0,0,0,4" IsEnabled="{Binding HasMultipleDisplays}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Different on each display" FontWeight="SemiBold" />
+                        <TextBlock Text="Pick a separate wallpaper for every screen." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <RadioButton GroupName="Layout" IsChecked="{Binding IsPerDisplay}" AutomationProperties.Name="Different on each display" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon ArrowMaximize24}" Margin="0,0,0,4" IsEnabled="{Binding HasMultipleDisplays}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Span across all displays" FontWeight="SemiBold" />
+                        <TextBlock Text="One wallpaper stretched over your whole desk as a single canvas." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <RadioButton GroupName="Layout" IsChecked="{Binding IsSpan}" AutomationProperties.Name="Span across all displays" />
+            </ui:CardControl>
+
+            <TextBlock Text="Playback" Style="{StaticResource SectionHeader}" />
+            <ui:CardControl Icon="{ui:SymbolIcon Pause24}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Pause all wallpapers" FontWeight="SemiBold" />
+                        <TextBlock Text="Freezes the current frame. Wavelit also pauses by itself when games or fullscreen apps run."
+                                   Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding UserPaused}"
+                                 AutomationProperties.Name="Pause all wallpapers" />
+            </ui:CardControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

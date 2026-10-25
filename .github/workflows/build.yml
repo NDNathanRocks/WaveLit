@@ -1,0 +1,30 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build Wavelit.sln -c Release
+
+      - name: Test
+        run: dotnet test tests/Wavelit.Core.Tests -c Release --no-build
+
+      - name: Publish (framework-dependent, x64)
+        run: dotnet publish src/Wavelit.App -c Release -r win-x64 --self-contained false -o publish/Wavelit
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Wavelit-win-x64
+          path: publish/Wavelit

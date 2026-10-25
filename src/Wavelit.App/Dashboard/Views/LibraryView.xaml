@@ -1,0 +1,53 @@
+<UserControl x:Class="Wavelit.App.Dashboard.Views.LibraryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:Wavelit.App.Dashboard.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:LibraryViewModel}">
+    <Grid Margin="28,20,20,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,8,16">
+            <TextBlock Text="Library" Style="{StaticResource PageTitle}" />
+            <TextBlock Text="Your wallpapers: included shaders, downloads, your own videos and web pages. Drag files onto this window to add them."
+                       Style="{StaticResource PageSubtitle}" />
+        </StackPanel>
+
+        <DockPanel Grid.Row="1" Margin="0,0,8,12" LastChildFill="False">
+            <ui:Button DockPanel.Dock="Left" Appearance="Primary" Icon="{ui:SymbolIcon Add24}" Content="Add videos or HTML"
+                       Command="{Binding AddFilesCommand}" />
+            <ui:Button DockPanel.Dock="Left" Margin="8,0,0,0" Icon="{ui:SymbolIcon Globe24}" Content="Add web page"
+                       Command="{Binding ToggleAddUrlCommand}" />
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <TextBlock Text="Apply to" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <ComboBox MinWidth="170" ItemsSource="{Binding Context.Targets}" SelectedItem="{Binding Context.SelectedTarget}"
+                          DisplayMemberPath="Label" AutomationProperties.Name="Apply to display" />
+            </StackPanel>
+        </DockPanel>
+
+        <Grid Grid.Row="2" Margin="0,0,8,12" Visibility="{Binding IsAddingUrl, Converter={StaticResource BoolToVisibility}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ui:TextBox PlaceholderText="https://example.com — any page that works as a wallpaper"
+                        Icon="{ui:SymbolIcon Link24}" Text="{Binding UrlText, UpdateSourceTrigger=PropertyChanged}"
+                        AutomationProperties.Name="Web page address">
+                <ui:TextBox.InputBindings>
+                    <KeyBinding Key="Enter" Command="{Binding AddUrlCommand}" />
+                </ui:TextBox.InputBindings>
+            </ui:TextBox>
+            <ui:Button Grid.Column="1" Margin="8,0,0,0" Appearance="Primary" Content="Add" Command="{Binding AddUrlCommand}" />
+        </Grid>
+
+        <ListBox Grid.Row="3" Style="{StaticResource CardGrid}" ItemsSource="{Binding Items}"
+                 ItemTemplate="{StaticResource WallpaperCard}" AutomationProperties.Name="Library" />
+    </Grid>
+</UserControl>

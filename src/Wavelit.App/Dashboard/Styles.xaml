@@ -1,0 +1,162 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                    xmlns:local="clr-namespace:Wavelit.App.Dashboard"
+                    xmlns:vm="clr-namespace:Wavelit.App.Dashboard.ViewModels"
+                    xmlns:vwp="clr-namespace:WpfToolkit.Controls;assembly=VirtualizingWrapPanel">
+
+    <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    <local:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
+    <local:NoticeSeverityConverter x:Key="NoticeSeverity" />
+
+    <Style x:Key="PageTitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="28" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    </Style>
+
+    <Style x:Key="PageSubtitle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Margin" Value="0,4,0,0" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+    </Style>
+
+    <Style x:Key="SectionHeader" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Margin" Value="0,24,0,8" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+    </Style>
+
+    <Style x:Key="Caption" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+    </Style>
+
+    <!-- Grid items: no selection chrome; the card's own buttons are the interaction. -->
+    <Style x:Key="CardItemStyle" TargetType="ListBoxItem">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <ContentPresenter Margin="8" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="CardGrid" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource CardItemStyle}" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+        <Setter Property="VirtualizingPanel.CacheLengthUnit" Value="Page" />
+        <Setter Property="VirtualizingPanel.CacheLength" Value="1" />
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <vwp:VirtualizingWrapPanel ItemSize="296,230" SpacingMode="StartAndEndOnly" StretchItems="False" />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <ScrollViewer Focusable="False" CanContentScroll="True" Padding="{TemplateBinding Padding}">
+                        <ItemsPresenter />
+                    </ScrollViewer>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <DataTemplate x:Key="WallpaperCard" DataType="{x:Type vm:CardViewModel}">
+        <Border x:Name="Root" Width="280" Height="214" CornerRadius="10"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                ToolTip="{Binding Title}">
+            <Grid>
+                <Grid.Clip>
+                    <RectangleGeometry Rect="0,0,278,212" RadiusX="9" RadiusY="9" />
+                </Grid.Clip>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="156" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Rectangle>
+                    <Rectangle.Fill>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                            <GradientStop Offset="0" Color="{Binding PlaceholderStart}" />
+                            <GradientStop Offset="1" Color="{Binding PlaceholderEnd}" />
+                        </LinearGradientBrush>
+                    </Rectangle.Fill>
+                </Rectangle>
+                <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
+
+                <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Padding="7,3"
+                        CornerRadius="4" Background="#B3000000">
+                    <TextBlock Text="{Binding Badge}" FontSize="10" FontWeight="SemiBold" Foreground="White" />
+                </Border>
+
+                <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Padding="7,3" CornerRadius="4"
+                        Background="{DynamicResource AccentFillColorDefaultBrush}"
+                        Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Symbol="Checkmark12" FontSize="11" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                        <TextBlock Margin="4,0,0,0" Text="IN USE" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                    </StackPanel>
+                </Border>
+
+                <Grid x:Name="Overlay" Background="#A6000000" Opacity="0">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <ui:Button Appearance="Primary" Content="Set as wallpaper" Icon="{ui:SymbolIcon Desktop24}"
+                                   Command="{Binding SetCommand}" HorizontalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,8,0,0">
+                            <ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Open24}" ToolTip="Open source page"
+                                       Command="{Binding OpenPageCommand}" Foreground="White"
+                                       Visibility="{Binding HasPage, Converter={StaticResource BoolToVisibility}}" />
+                            <ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Delete24}" ToolTip="Remove from library"
+                                       Command="{Binding RemoveCommand}" Foreground="White"
+                                       Visibility="{Binding CanRemove, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <ProgressBar VerticalAlignment="Bottom" Height="4" Margin="0" Minimum="0" Maximum="100"
+                             Value="{Binding Progress}" IsIndeterminate="{Binding IsIndeterminate}"
+                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+
+                <StackPanel Grid.Row="1" Margin="12,8,12,0">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <TextBlock Text="{Binding Subtitle}" Margin="0,2,0,0" FontSize="12" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+        <DataTemplate.Triggers>
+            <Trigger SourceName="Root" Property="IsMouseOver" Value="True">
+                <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+            </Trigger>
+            <Trigger SourceName="Root" Property="IsKeyboardFocusWithin" Value="True">
+                <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+            </Trigger>
+            <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                <Setter TargetName="Overlay" Property="Opacity" Value="1" />
+                <Setter TargetName="Overlay" Property="IsEnabled" Value="False" />
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+</ResourceDictionary>
