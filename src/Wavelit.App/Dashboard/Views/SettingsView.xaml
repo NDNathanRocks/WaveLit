@@ -13,11 +13,42 @@
 
             <!-- API keys -->
             <TextBlock Text="Online libraries (optional, free)" Style="{StaticResource SectionHeader}" />
+            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,0,0,8"
+                       Text="Wallhaven wallpapers, NASA videos and Openverse images work without any key. These free keys add more." />
             <ui:CardExpander Icon="{ui:SymbolIcon Video24}" IsExpanded="True" Margin="0,0,0,4">
                 <ui:CardExpander.Header>
                     <StackPanel>
+                        <TextBlock Text="Pixabay videos (recommended)" FontWeight="SemiBold" />
+                        <TextBlock Text="Thousands of free HD and 4K videos. The key is issued instantly." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,8" TextWrapping="Wrap">
+                        1. Create a free account at
+                        <Hyperlink Command="{Binding OpenLinkCommand}" CommandParameter="https://pixabay.com/accounts/register/">pixabay.com</Hyperlink>.
+                        2. Your key is shown at
+                        <Hyperlink Command="{Binding OpenLinkCommand}" CommandParameter="https://pixabay.com/api/docs/#api_search_videos">pixabay.com/api/docs</Hyperlink>
+                        once you're signed in. Paste it below; it's encrypted and stays on this PC.
+                    </TextBlock>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:PasswordBox Password="{Binding PixabayKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        PlaceholderText="Pixabay API key" AutomationProperties.Name="Pixabay API key" />
+                        <ui:Button Grid.Column="1" Margin="8,0,0,0" Appearance="Primary" Content="Save &amp; test"
+                                   Command="{Binding SavePixabayKeyCommand}" />
+                    </Grid>
+                    <TextBlock Margin="0,6,0,0" Text="{Binding PixabayStatus}" Style="{StaticResource Caption}" />
+                </StackPanel>
+            </ui:CardExpander>
+
+            <ui:CardExpander Icon="{ui:SymbolIcon Video24}" IsExpanded="False" Margin="0,0,0,4">
+                <ui:CardExpander.Header>
+                    <StackPanel>
                         <TextBlock Text="Pexels videos" FontWeight="SemiBold" />
-                        <TextBlock Text="Thousands of free HD and 4K videos." Style="{StaticResource Caption}" />
+                        <TextBlock Text="For existing key holders: Pexels has paused new API keys." Style="{StaticResource Caption}" />
                     </StackPanel>
                 </ui:CardExpander.Header>
                 <StackPanel>
@@ -64,6 +95,79 @@
                                    Command="{Binding SaveShadertoyKeyCommand}" />
                     </Grid>
                     <TextBlock Margin="0,6,0,0" Text="{Binding ShadertoyStatus}" Style="{StaticResource Caption}" />
+                </StackPanel>
+            </ui:CardExpander>
+
+            <!-- Create -->
+            <TextBlock Text="Create (AI wallpapers)" Style="{StaticResource SectionHeader}" />
+            <ContentControl Content="{Binding LocalAi}" Focusable="False" Margin="0,0,0,4" />
+            <ui:CardExpander Icon="{ui:SymbolIcon Cloud24}" IsExpanded="False" Margin="0,0,0,4">
+                <ui:CardExpander.Header>
+                    <StackPanel>
+                        <TextBlock Text="Cloudflare Workers AI (optional)" FontWeight="SemiBold" />
+                        <TextBlock Text="A second free cloud generator with a daily allowance, using your own account." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,8" TextWrapping="Wrap">
+                        1. Sign up free at
+                        <Hyperlink Command="{Binding OpenLinkCommand}" CommandParameter="https://dash.cloudflare.com/sign-up">cloudflare.com</Hyperlink>.
+                        2. Copy your Account ID (Workers &amp; Pages overview).
+                        3. Create an API token with the "Workers AI" template at
+                        <Hyperlink Command="{Binding OpenLinkCommand}" CommandParameter="https://dash.cloudflare.com/profile/api-tokens">API tokens</Hyperlink>.
+                    </TextBlock>
+                    <ui:TextBox Text="{Binding CloudflareAccount, UpdateSourceTrigger=PropertyChanged}" PlaceholderText="Account ID"
+                                AutomationProperties.Name="Cloudflare account ID" Margin="0,0,0,6" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:PasswordBox Password="{Binding CloudflareToken, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        PlaceholderText="API token" AutomationProperties.Name="Cloudflare API token" />
+                        <ui:Button Grid.Column="1" Margin="8,0,0,0" Appearance="Primary" Content="Save &amp; test"
+                                   Command="{Binding SaveCloudflareCommand}" />
+                    </Grid>
+                    <TextBlock Margin="0,6,0,0" Text="{Binding CloudflareStatus}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                </StackPanel>
+            </ui:CardExpander>
+
+            <!-- Day & night -->
+            <TextBlock Text="Follows the sun" Style="{StaticResource SectionHeader}" />
+            <ui:CardExpander Icon="{ui:SymbolIcon WeatherSunny24}" IsExpanded="{Binding DayNightEnabled, Mode=OneTime}" Margin="0,0,0,4">
+                <ui:CardExpander.Header>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Day and night wallpapers" FontWeight="SemiBold" />
+                            <TextBlock Text="Switch wallpapers at sunrise and sunset where you live." Style="{StaticResource Caption}" />
+                        </StackPanel>
+                        <ui:ToggleSwitch Grid.Column="1" IsChecked="{Binding DayNightEnabled}" Margin="0,0,12,0"
+                                         AutomationProperties.Name="Day and night wallpapers" />
+                    </Grid>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                    <WrapPanel>
+                        <StackPanel Margin="0,0,16,8">
+                            <TextBlock Text="By day" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                            <ComboBox Width="220" ItemsSource="{Binding LibraryItems}" SelectedItem="{Binding DayItem}" DisplayMemberPath="Title"
+                                      AutomationProperties.Name="Day wallpaper" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,8">
+                            <TextBlock Text="By night" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                            <ComboBox Width="220" ItemsSource="{Binding LibraryItems}" SelectedItem="{Binding NightItem}" DisplayMemberPath="Title"
+                                      AutomationProperties.Name="Night wallpaper" />
+                        </StackPanel>
+                        <StackPanel Margin="0,0,16,8">
+                            <TextBlock Text="Nearest city" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                            <ComboBox Width="200" ItemsSource="{Binding Cities}" SelectedItem="{Binding SelectedCity}" DisplayMemberPath="Name"
+                                      IsTextSearchEnabled="True" AutomationProperties.Name="Nearest city" />
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding SunText}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
                 </StackPanel>
             </ui:CardExpander>
 
@@ -129,11 +233,11 @@
             <ui:CardControl Icon="{ui:SymbolIcon TopSpeed24}" Margin="0,0,0,4">
                 <ui:CardControl.Header>
                     <StackPanel>
-                        <TextBlock Text="Shader frame rate" FontWeight="SemiBold" />
-                        <TextBlock Text="Lower is smoother on battery; most shaders look great at 30." Style="{StaticResource Caption}" />
+                        <TextBlock Text="Motion" FontWeight="SemiBold" />
+                        <TextBlock Text="How fluidly shaders and overlays move. Pristine is paced to your screen's refresh rate; choose Balanced or Saver on battery." Style="{StaticResource Caption}" TextWrapping="Wrap" />
                     </StackPanel>
                 </ui:CardControl.Header>
-                <ComboBox MinWidth="200" ItemsSource="{Binding FpsChoices}" SelectedItem="{Binding SelectedFps}" DisplayMemberPath="Label" />
+                <ComboBox MinWidth="300" ItemsSource="{Binding FpsChoices}" SelectedItem="{Binding SelectedFps}" DisplayMemberPath="Label" AutomationProperties.Name="Motion quality" />
             </ui:CardControl>
             <ui:CardControl Icon="{ui:SymbolIcon Image24}" Margin="0,0,0,4">
                 <ui:CardControl.Header>

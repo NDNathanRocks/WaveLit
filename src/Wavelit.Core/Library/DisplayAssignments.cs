@@ -9,14 +9,14 @@ public enum DisplayLayout
     Duplicate,
     /// <summary>Each display has its own wallpaper.</summary>
     PerDisplay,
-    /// <summary>One wallpaper stretched across all displays as a single canvas.</summary>
+    /// <summary>"Extend": one wallpaper continues across all displays as a single canvas (the default).</summary>
     Span,
 }
 
 /// <summary>Which wallpaper goes where. Immutable; changes produce a new instance.</summary>
 public sealed record DisplayAssignments
 {
-    public DisplayLayout Layout { get; init; } = DisplayLayout.Duplicate;
+    public DisplayLayout Layout { get; init; } = DisplayLayout.Span;
     /// <summary>Item used for Duplicate/Span, and the fallback for displays with no explicit item.</summary>
     public string? SharedItemId { get; init; }
     public Dictionary<string, string> PerDisplay { get; init; } = new();
@@ -29,10 +29,10 @@ public sealed record DisplayAssignments
     {
         if (monitorId is null)
         {
-            // "All displays": keep Span if the user chose it, otherwise duplicate.
+            // "All displays": keep "Same on every display" if the user chose it, otherwise extend.
             return this with
             {
-                Layout = Layout == DisplayLayout.Span ? DisplayLayout.Span : DisplayLayout.Duplicate,
+                Layout = Layout == DisplayLayout.Duplicate ? DisplayLayout.Duplicate : DisplayLayout.Span,
                 SharedItemId = itemId,
                 PerDisplay = new(),
             };

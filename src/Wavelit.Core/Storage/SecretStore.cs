@@ -8,6 +8,9 @@ public static class SecretNames
 {
     public const string PexelsApiKey = "pexels";
     public const string ShadertoyApiKey = "shadertoy";
+    public const string PixabayApiKey = "pixabay";
+    public const string CloudflareAccountId = "cloudflare-account";
+    public const string CloudflareApiToken = "cloudflare-token";
 }
 
 /// <summary>

@@ -18,6 +18,9 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private string _urlText = "";
     [ObservableProperty] private bool _isAddingUrl;
+    [ObservableProperty] private bool _isPastingShader;
+    [ObservableProperty] private string _shaderTitle = "";
+    [ObservableProperty] private string _shaderCode = "";
 
     public LibraryViewModel(DashboardContext context, WallpaperService wallpapers)
     {
@@ -39,7 +42,8 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         {
             Title = "Add wallpapers",
             Multiselect = true,
-            Filter = "Videos and web pages|*.mp4;*.m4v;*.webm;*.mov;*.html;*.htm|Videos|*.mp4;*.m4v;*.webm;*.mov|Web pages|*.html;*.htm",
+            Filter = "Wallpapers|*.mp4;*.m4v;*.webm;*.mov;*.jpg;*.jpeg;*.png;*.webp;*.bmp;*.gif;*.avif;*.html;*.htm"
+                + "|Videos|*.mp4;*.m4v;*.webm;*.mov|Images|*.jpg;*.jpeg;*.png;*.webp;*.bmp;*.gif;*.avif|Web pages|*.html;*.htm",
         };
         if (dialog.ShowDialog() == true) AddPaths(dialog.FileNames);
     }
@@ -52,7 +56,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
             Context.Notify("Added to library", added.Count == 1 ? $"“{added[0].Title}” is ready to use." : $"{added.Count} wallpapers added.", NoticeLevel.Success);
         int skipped = list.Count - added.Count;
         if (skipped > 0)
-            Context.Notify("Some files were skipped", "Wavelit supports MP4, M4V, WebM and MOV videos, and HTML pages.", NoticeLevel.Warning);
+            Context.Notify("Some files were skipped", "Wavelit supports MP4, M4V, WebM and MOV videos, JPG, PNG, WebP, GIF and AVIF images, and HTML pages.", NoticeLevel.Warning);
     }
 
     [RelayCommand]
@@ -71,6 +75,26 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         UrlText = "";
         IsAddingUrl = false;
         Context.Notify("Web page added", $"{item.Title} is in your library.", NoticeLevel.Success);
+    }
+
+    [RelayCommand]
+    private void TogglePasteShader() => IsPastingShader = !IsPastingShader;
+
+    /// <summary>"Paste a shader": validates, saves to the library and shows it right away (the GPU compiler has the last word).</summary>
+    [RelayCommand]
+    private void AddShader()
+    {
+        if (PastedShader.Validate(ShaderCode) is { } problem)
+        {
+            Context.Notify("That shader can't be used", problem, NoticeLevel.Warning);
+            return;
+        }
+        var item = Context.Library.Upsert(PastedShader.CreateItem(ShaderTitle, ShaderCode));
+        Context.Actions.Assign(item.Id, Context.TargetMonitorId);
+        ShaderTitle = "";
+        ShaderCode = "";
+        IsPastingShader = false;
+        Context.Notify("Shader added", $"“{item.Title}” is now your wallpaper. If it doesn't compile, you'll see the error here.", NoticeLevel.Success);
     }
 
     private void Remove(CardViewModel card)

@@ -10,12 +10,14 @@ using Wavelit.App.Dashboard.ViewModels;
 using Wavelit.App.Services;
 using Wavelit.App.Tray;
 using Wavelit.App.Wallpaper;
+using Wavelit.Core.Create;
 using Wavelit.Core.Desktop;
 using Wavelit.Core.Diagnostics;
 using Wavelit.Core.Library;
 using Wavelit.Core.Library.BuiltIn;
 using Wavelit.Core.Library.Pexels;
 using Wavelit.Core.Library.Shadertoy;
+using Wavelit.Core.Library.Sources;
 using Wavelit.Core.Storage;
 
 namespace Wavelit.App;
@@ -39,11 +41,15 @@ public partial class App : Application
         System.Windows.Media.RenderOptions.ProcessRenderMode = System.Windows.Interop.RenderMode.SoftwareOnly;
 
         bool quitRequested = e.Args.Contains("--quit"); // used by installers/uninstallers
+        bool snapshotRequested = e.Args.Contains("--snapshot"); // diagnostics: logs/snapshot.png of every wallpaper
+        bool statsRequested = e.Args.Contains("--frame-stats"); // diagnostics: frame pacing of every wallpaper, to the log
         _singleInstance = new SingleInstance();
-        if (!_singleInstance.IsFirst || quitRequested)
+        if (!_singleInstance.IsFirst || quitRequested || snapshotRequested || statsRequested)
         {
             if (!_singleInstance.IsFirst)
-                SingleInstance.SignalFirstInstance(quitRequested ? SingleInstance.QuitCommand : SingleInstance.ActivateCommand);
+                SingleInstance.SignalFirstInstance(quitRequested ? SingleInstance.QuitCommand
+                    : snapshotRequested ? SingleInstance.SnapshotCommand
+                    : statsRequested ? SingleInstance.FrameStatsCommand : SingleInstance.ActivateCommand);
             _singleInstance.Dispose();
             Shutdown();
             return;
@@ -85,12 +91,19 @@ public partial class App : Application
         _singleInstance.Listen(command => Dispatcher.BeginInvoke(() =>
         {
             if (command == SingleInstance.QuitCommand) _ = QuitAsync();
+            else if (command == SingleInstance.SnapshotCommand) _ = wallpapers.SaveSnapshotAsync();
+            else if (command == SingleInstance.FrameStatsCommand) wallpapers.LogFrameStats();
             else OpenDashboard();
         }));
         _ = _services.GetRequiredService<LibraryActions>().TrimCacheAsync();
 
         if (e.Args.Contains("--soak")) StartSoakLog(paths, wallpapers);
-        if (firstRun || !e.Args.Contains(StartupRegistration.BackgroundArg)) OpenDashboard();
+        _services.GetRequiredService<CreateService>().ClearPending();
+        _services.GetRequiredService<SetupMemoryService>();
+        _services.GetRequiredService<DayNightService>().Start();
+        _services.GetRequiredService<LocalAiService>().ResumeIfWanted();
+        if (firstRun) ShowWelcome(paths);
+        else if (!e.Args.Contains(StartupRegistration.BackgroundArg)) OpenDashboard();
 
         SessionEnding += (_, _) => _ = QuitAsync();
     }
@@ -107,11 +120,25 @@ public partial class App : Application
         services.AddSingleton<MediaCache>();
         services.AddSingleton<PexelsClient>();
         services.AddSingleton<ShadertoyClient>();
+        // Online libraries, in the order their results are interleaved.
+        services.AddSingleton<IWallpaperSource, WallhavenSource>();
+        services.AddSingleton<IWallpaperSource, PixabaySource>();
+        services.AddSingleton<IWallpaperSource, CommonsSource>();
+        services.AddSingleton<IWallpaperSource, NasaSource>();
+        services.AddSingleton<IWallpaperSource, OpenverseSource>();
+        services.AddSingleton<IWallpaperSource, PexelsSource>();
         services.AddSingleton<WallpaperResolver>();
         services.AddSingleton<DesktopHost>();
         services.AddSingleton<WallpaperService>();
         services.AddSingleton<ThumbnailLoader>();
         services.AddSingleton<LibraryActions>();
+        services.AddSingleton<ModelDownloader>();
+        services.AddSingleton<LocalAiService>();
+        services.AddSingleton<PollinationsGenerator>();
+        services.AddSingleton<CloudflareGenerator>();
+        services.AddSingleton<CreateService>();
+        services.AddSingleton<SetupMemoryService>();
+        services.AddSingleton<DayNightService>();
 
         // Dashboard view models are created per window and disposed by the window when it closes.
         // A factory (rather than a transient registration) keeps the container from also tracking and
@@ -121,12 +148,17 @@ public partial class App : Application
             var wallpapers = sp.GetRequiredService<WallpaperService>();
             var ctx = new DashboardContext(wallpapers, sp.GetRequiredService<ThumbnailLoader>(),
                 sp.GetRequiredService<LibraryActions>(), sp.GetRequiredService<SettingsStore>(), sp.GetRequiredService<LibraryStore>());
+            var localAi = sp.GetRequiredService<LocalAiService>();
             return new MainViewModel(ctx,
-                new DiscoverViewModel(ctx, sp.GetRequiredService<PexelsClient>(), sp.GetRequiredService<ShadertoyClient>()),
+                new DiscoverViewModel(ctx, sp.GetServices<IWallpaperSource>(), sp.GetRequiredService<ShadertoyClient>(), sp.GetRequiredService<CreateService>()),
+                new CreateViewModel(ctx, sp.GetRequiredService<CreateService>(), new LocalAiViewModel(localAi, paths), sp.GetRequiredService<SecretStore>()),
                 new LibraryViewModel(ctx, wallpapers),
                 new DisplaysViewModel(ctx, wallpapers),
+                new OverlaysViewModel(ctx),
                 new SettingsViewModel(ctx, sp.GetRequiredService<SecretStore>(), sp.GetRequiredService<PexelsClient>(),
-                    sp.GetRequiredService<ShadertoyClient>(), sp.GetRequiredService<MediaCache>(), paths),
+                    sp.GetRequiredService<ShadertoyClient>(), sp.GetRequiredService<MediaCache>(), paths,
+                    sp.GetServices<IWallpaperSource>().OfType<PixabaySource>().Single(), sp.GetRequiredService<IHttpClientFactory>(),
+                    new LocalAiViewModel(localAi, paths)),
                 new AboutViewModel(wallpapers),
                 wallpapers);
         });
@@ -152,6 +184,24 @@ public partial class App : Application
                 c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
             })
             .RemoveAllLoggers();
+        services.AddHttpClient(JsonSource.HttpClientName, c =>
+            {
+                c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+            })
+            .RemoveAllLoggers()
+            .AddStandardResilienceHandler();
+        services.AddHttpClient(ModelDownloader.HttpClientName, c =>
+            {
+                c.Timeout = Timeout.InfiniteTimeSpan; // multi-GB files; pausing cancels explicitly
+                c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+            })
+            .RemoveAllLoggers();
+        services.AddHttpClient(PollinationsGenerator.HttpClientName, c =>
+            {
+                c.Timeout = TimeSpan.FromMinutes(3); // free generators can queue for a while
+                c.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+            })
+            .RemoveAllLoggers();
         services.AddHttpClient(ThumbnailLoader.HttpClientName, c =>
             {
                 c.Timeout = TimeSpan.FromSeconds(20);
@@ -160,6 +210,17 @@ public partial class App : Application
             .RemoveAllLoggers();
 
         return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+    }
+
+    // First run: three quick choices (starting wallpaper, multi-screen, optional Local AI), then the dashboard.
+    private void ShowWelcome(AppPaths paths)
+    {
+        var sp = _services!;
+        var vm = new WelcomeViewModel(sp.GetRequiredService<SettingsStore>(), sp.GetRequiredService<LibraryActions>(),
+            sp.GetRequiredService<LocalAiService>(), sp.GetRequiredService<ThumbnailLoader>(), sp.GetRequiredService<WallpaperService>(), paths);
+        var welcome = new WelcomeWindow(vm);
+        welcome.Closed += (_, _) => OpenDashboard();
+        welcome.Show();
     }
 
     private void OpenDashboard()

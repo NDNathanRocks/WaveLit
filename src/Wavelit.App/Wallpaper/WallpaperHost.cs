@@ -40,6 +40,9 @@ internal sealed class WallpaperHost : IDisposable
     private HwndSource? _source;
     private TaskCompletionSource? _ready;
     private RenderOptions? _options;
+    private CanvasView? _view;
+    private long? _clockEpochMs;
+    private MediaFraming? _framing;
     private WallpaperKind? _kind;
     private string? _localFolder;
     private bool _cacheMapped;
@@ -51,6 +54,9 @@ internal sealed class WallpaperHost : IDisposable
     private bool _applying;
     private int _loads;
     private int _epoch;
+    private bool _shaderUsesPointer;
+    private string? _itemId;   // the item being shown or loaded (per-wallpaper overlay)
+    private PointerSample? _lastPointer;
 
     public WallpaperHost(string key, IReadOnlyList<MonitorInfo> monitors, AppPaths paths, string webRoot, ILogger logger)
     {
@@ -71,11 +77,24 @@ internal sealed class WallpaperHost : IDisposable
     public PlaybackState State { get; private set; } = PlaybackState.Playing;
     public bool IsAlive => !_disposed && _source is { IsDisposed: false } && NativeMethods.IsWindow(Handle);
     public int? BrowserProcessId { get; private set; }
+    public CanvasView? View => _view;
+
+    /// <summary>
+    /// The page wants the cursor: the interactive layer is on, or the shader reacts to the mouse.
+    /// Never for web pages (they're third-party content and get no input from Wavelit).
+    /// </summary>
+    public bool NeedsPointer => !_disposed && LoadedItemId is not null && _kind is not (null or WallpaperKind.Web)
+        && (_shaderUsesPointer || Overlay?.UsesPointer == true);
+
+    /// <summary>The overlay this window shows: the global one, or the wallpaper's own style.</summary>
+    private InteractiveSettings? Overlay => _options?.OverlayOf(_itemId);
 
     /// <summary>Raised when the renderer reports an error or crashes (message is user-facing).</summary>
     public event EventHandler<string>? Failed;
     /// <summary>Raised when the browser process died; the host must be recreated.</summary>
     public event EventHandler? Crashed;
+    /// <summary>Raised with the pixel size of the loaded video or image (for framing and "fits your setup").</summary>
+    public event EventHandler<(string ItemId, int Width, int Height)>? MediaSized;
 
     public async Task InitializeAsync(DesktopLayer layer, RECT bounds, CoreWebView2Environment env)
     {
@@ -148,6 +167,9 @@ internal sealed class WallpaperHost : IDisposable
         _loads++;
         _epoch++;
         _applied = null;
+        _lastPointer = null;
+        _shaderUsesPointer = false;
+        _itemId = wallpaper.Item.Id;
         if (core.IsSuspended) core.Resume(); // the page must run to load, even if it stays hidden
 
         try
@@ -156,7 +178,7 @@ internal sealed class WallpaperHost : IDisposable
             {
                 case ResolvedWallpaper.Video v:
                 {
-                    var (src, folder) = VideoSource(v.FilePath);
+                    var (src, folder) = MediaSource(v.FilePath);
                     await EnsureHostPageAsync(cache: true, localFolder: folder, ct);
                     _kind = WallpaperKind.Video;
                     core.IsMuted = options.Muted;
@@ -164,9 +186,20 @@ internal sealed class WallpaperHost : IDisposable
                     break;
                 }
 
+                case ResolvedWallpaper.Image img:
+                {
+                    var (src, folder) = MediaSource(img.FilePath);
+                    await EnsureHostPageAsync(cache: true, localFolder: folder, ct);
+                    _kind = WallpaperKind.Image;
+                    core.IsMuted = true;
+                    await SendLoadAsync(new { type = "image", src, effect = ImageEffects.Normalize(img.Item.Effect) }, ct);
+                    break;
+                }
+
                 case ResolvedWallpaper.Shader sh:
                     await EnsureHostPageAsync(cache: true, localFolder: null, ct);
                     _kind = WallpaperKind.Shader;
+                    _shaderUsesPointer = sh.Program.Passes.Any(p => PointerUniforms.IsMatch(p.Code));
                     core.IsMuted = true;
                     await SendLoadAsync(new { type = "shader", program = sh.Program }, ct);
                     break;
@@ -195,8 +228,60 @@ internal sealed class WallpaperHost : IDisposable
         _options = options;
         var core = _web.CoreWebView2;
         if (core is null) return;
-        if (_kind != WallpaperKind.Shader) core.IsMuted = options.Muted;
+        if (_kind is WallpaperKind.Video or WallpaperKind.Web) core.IsMuted = options.Muted;
         Post(new { type = "options", options = PageOptions(options) });
+    }
+
+    /// <summary>Asks the page for its frame pacing (logged when it answers; --frame-stats).</summary>
+    public void RequestFrameStats() => Post(new { type = "stats" });
+
+    /// <summary>
+    /// Sets this window's place on the wallpaper canvas. In Extend mode every display draws its own slice
+    /// on a shared clock (<paramref name="clockEpochMs"/>, Unix ms); otherwise the window is its own canvas.
+    /// </summary>
+    public void SetView(CanvasView view, long? clockEpochMs)
+    {
+        if (view == _view && clockEpochMs == _clockEpochMs) return;
+        _view = view;
+        _clockEpochMs = clockEpochMs;
+        PostView();
+    }
+
+    /// <summary>The framing-editor placement for videos and images (null = automatic, centred on the focus).</summary>
+    public void SetFraming(MediaFraming? framing)
+    {
+        if (framing == _framing) return;
+        _framing = framing;
+        PostFraming();
+    }
+
+    /// <summary>Tells the page where the cursor is (only when it changed). See PointerFeed.</summary>
+    public void SendPointer(PointerSample sample)
+    {
+        if (_lastPointer == sample || _kind is null or WallpaperKind.Web) return;
+        _lastPointer = sample;
+        Post(new { type = "pointer", x = sample.X, y = sample.Y, over = sample.Over, down = sample.Down });
+    }
+
+    public PointerSample? LastPointer => _lastPointer;
+
+    private static readonly System.Text.RegularExpressions.Regex PointerUniforms =
+        new(@"\b(iMouse|iPointer|iClick|iTrail)\b", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private void PostFraming()
+        => Post(new { type = "framing", framing = _framing is { } f ? new { zoom = f.Zoom, x = f.CenterX, y = f.CenterY } : null });
+
+    private void PostView()
+    {
+        if (_view is not { } v) return;
+        Post(new
+        {
+            type = "view",
+            canvas = new { width = v.CanvasWidth, height = v.CanvasHeight },
+            viewport = new { x = v.Viewport.Left, y = v.Viewport.Top, width = v.Viewport.Width, height = v.Viewport.Height },
+            focus = new { x = v.FocusX, y = v.FocusY, size = v.FocusSize },
+            clockEpoch = _clockEpochMs,
+        });
     }
 
     /// <summary>Shows nothing (the normal Windows wallpaper shows through), e.g. after a load error.</summary>
@@ -209,6 +294,8 @@ internal sealed class WallpaperHost : IDisposable
 
     public Task SetStateAsync(PlaybackState state)
     {
+        // A wallpaper that stops playing forgets the cursor, so it doesn't resume with a stale one.
+        if (state != PlaybackState.Playing && _lastPointer is { Over: true } p) SendPointer(PointerSample.Away(p));
         State = state;
         return ApplyStateAsync();
     }
@@ -261,6 +348,9 @@ internal sealed class WallpaperHost : IDisposable
                 break;
         }
     }
+
+    /// <summary>The frame currently on screen at full size (diagnostics).</summary>
+    public Task<BitmapSource?> CaptureFrameAsync() => CaptureAsync(decodeWidth: 0);
 
     public Task<BitmapSource?> CaptureThumbnailAsync(int width)
         => State == PlaybackState.Playing ? CaptureAsync(width) : Task.FromResult<BitmapSource?>(null);
@@ -323,8 +413,8 @@ internal sealed class WallpaperHost : IDisposable
         return bmp;
     }
 
-    /// <summary>The URL a video file is served from, and the local folder that must be mapped for it (if any).</summary>
-    private (string Src, string? Folder) VideoSource(string filePath)
+    /// <summary>The URL a video or image file is served from, and the local folder that must be mapped for it (if any).</summary>
+    private (string Src, string? Folder) MediaSource(string filePath)
     {
         string full = Path.GetFullPath(filePath);
         if (full.StartsWith(_paths.CacheRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
@@ -370,6 +460,7 @@ internal sealed class WallpaperHost : IDisposable
 
     private Task NavigateToHostPageAsync()
     {
+        _lastPointer = null;
         _ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _web.CoreWebView2.Navigate(AppOrigin + "host.html");
         return _ready.Task.WaitAsync(TimeSpan.FromSeconds(15));
@@ -384,6 +475,8 @@ internal sealed class WallpaperHost : IDisposable
         {
             if (_options is not null) Post(new { type = "options", options = PageOptions(_options) });
             SendResize();
+            PostView();
+            PostFraming();
             Post(MergeId(message, id));
             if (State != PlaybackState.Playing) Post(new { type = "pause" });
             string? error;
@@ -412,7 +505,7 @@ internal sealed class WallpaperHost : IDisposable
         return dict;
     }
 
-    private static object PageOptions(RenderOptions o) => new
+    private object PageOptions(RenderOptions o) => new
     {
         fps = o.Fps,
         scale = o.Scale,
@@ -420,6 +513,18 @@ internal sealed class WallpaperHost : IDisposable
         muted = o.Muted,
         volume = o.Volume,
         smoothLoop = o.SmoothLoop,
+        interactive = OverlayOptions(o.OverlayOf(_itemId)),
+    };
+
+    private static object OverlayOptions(InteractiveSettings i) => new
+    {
+        style = i.Style,
+        amount = i.Amount,
+        color = i.Color,
+        size = i.Size,
+        speed = i.Speed,
+        response = i.Response,
+        opacity = i.Opacity,
     };
 
     private void SendResize() => Post(new { type = "resize", width = Bounds.Width, height = Bounds.Height });
@@ -471,6 +576,16 @@ internal sealed class WallpaperHost : IDisposable
                     break;
                 case "loaded":
                     if (_pending.TryGetValue(id, out var ok)) ok.TrySetResult(null);
+                    break;
+                case "media":
+                    if (LoadedItemId is { } item
+                        && root.TryGetProperty("width", out var mw) && mw.TryGetInt32(out int w) && w is > 0 and <= 32768
+                        && root.TryGetProperty("height", out var mh) && mh.TryGetInt32(out int h) && h is > 0 and <= 32768)
+                        MediaSized?.Invoke(this, (item, w, h));
+                    break;
+                case "stats":
+                    _logger.LogInformation("Frame stats on host {Key}: {Stats}", Key,
+                        root.TryGetProperty("items", out var items) ? items.GetRawText() : "[]");
                     break;
                 case "error":
                     string text = string.IsNullOrWhiteSpace(message) ? "The wallpaper failed to render." : message;

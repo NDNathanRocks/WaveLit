@@ -18,8 +18,10 @@
                  mc:Ignorable="d">
     <ui:FluentWindow.Resources>
         <DataTemplate DataType="{x:Type vm:DiscoverViewModel}"><views:DiscoverView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:CreateViewModel}"><views:CreateView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:LibraryViewModel}"><views:LibraryView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:DisplaysViewModel}"><views:DisplaysView /></DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OverlaysViewModel}"><views:OverlaysView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
         <DataTemplate DataType="{x:Type vm:AboutViewModel}"><views:AboutView /></DataTemplate>
     </ui:FluentWindow.Resources>

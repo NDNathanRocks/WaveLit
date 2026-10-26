@@ -23,7 +23,7 @@ public sealed partial class CardViewModel : ObservableObject
     private readonly Action<CardViewModel>? _onRemove;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Title), nameof(Subtitle), nameof(Badge), nameof(Item))]
+    [NotifyPropertyChangedFor(nameof(Title), nameof(Subtitle), nameof(Badge), nameof(Item), nameof(Attribution))]
     private SearchResult _result;
 
     [ObservableProperty] private ImageSource? _thumbnail;
@@ -32,6 +32,8 @@ public sealed partial class CardViewModel : ObservableObject
     [ObservableProperty] private bool _isIndeterminate;
     [ObservableProperty] private bool _isActive;
     [ObservableProperty] private bool _isDetailsLoaded = true;
+    /// <summary>"Perfect fit" / "Good fit" / "Will crop" / "Low resolution" for the user's screens.</summary>
+    [ObservableProperty] private string? _fitLabel;
 
     public CardViewModel(SearchResult result, Func<CardViewModel, Task> onSet, Action<CardViewModel>? onRemove = null)
     {
@@ -45,6 +47,12 @@ public sealed partial class CardViewModel : ObservableObject
 
     public WallpaperItem Item => Result.Item;
     public string Title => IsDetailsLoaded ? Item.Title : "Loading…";
+
+    /// <summary>Hover text: title, creator, source and licence (CC BY / BY-SA attribution).</summary>
+    public string Attribution => Item.License is { Length: > 0 } license && IsDetailsLoaded && !Item.IsBuiltIn
+        ? $"{Title}\n{Subtitle}\nLicence: {license}"
+        : Title;
+
     public Color PlaceholderStart { get; }
     public Color PlaceholderEnd { get; }
     public bool CanRemove => _onRemove is not null && !Item.IsBuiltIn;
@@ -54,6 +62,8 @@ public sealed partial class CardViewModel : ObservableObject
     {
         WallpaperKind.Video => "VIDEO",
         WallpaperKind.Shader => "LIVE SHADER",
+        WallpaperKind.Image when Item.Source == WallpaperSources.Generated => "CREATION",
+        WallpaperKind.Image => ImageEffects.Normalize(Item.Effect) == ImageEffects.None ? "IMAGE" : "LIVING IMAGE",
         _ => "WEB",
     };
 
@@ -64,7 +74,14 @@ public sealed partial class CardViewModel : ObservableObject
             string source = Item.Source switch
             {
                 WallpaperSources.Pexels => "Pexels",
+                WallpaperSources.Pixabay => "Pixabay",
+                WallpaperSources.Wallhaven => "Wallhaven",
+                WallpaperSources.Nasa => "NASA",
+                WallpaperSources.Openverse => "Openverse",
+                WallpaperSources.Commons => "Wikimedia Commons",
                 WallpaperSources.Shadertoy => "Shadertoy",
+                WallpaperSources.Pasted => "Your shader",
+                WallpaperSources.Generated => "Created by you",
                 WallpaperSources.BuiltIn => "Included",
                 WallpaperSources.Local => "On this PC",
                 _ => "Web page",
@@ -76,7 +93,11 @@ public sealed partial class CardViewModel : ObservableObject
         }
     }
 
-    partial void OnIsDetailsLoadedChanged(bool value) => OnPropertyChanged(nameof(Title));
+    partial void OnIsDetailsLoadedChanged(bool value)
+    {
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(Attribution));
+    }
 
     [RelayCommand]
     private async Task SetAsync()

@@ -11,11 +11,11 @@ public class DisplayAssignmentsTests
     private static readonly string[] Monitors = ["A", "B"];
 
     [Fact]
-    public void Assigning_to_all_displays_duplicates_and_clears_per_display()
+    public void Assigning_to_all_displays_extends_and_clears_per_display()
     {
         var d = new DisplayAssignments { Layout = DisplayLayout.PerDisplay, PerDisplay = new() { ["A"] = "x" } };
         var next = d.Assign("y", null, Monitors);
-        Assert.Equal(DisplayLayout.Duplicate, next.Layout);
+        Assert.Equal(DisplayLayout.Span, next.Layout);
         Assert.Equal("y", next.ItemFor("A"));
         Assert.Equal("y", next.ItemFor("B"));
     }
@@ -36,6 +36,16 @@ public class DisplayAssignmentsTests
         var d = new DisplayAssignments { Layout = DisplayLayout.Span, SharedItemId = "a" };
         Assert.Equal(DisplayLayout.Span, d.Assign("b", null, Monitors).Layout);
     }
+
+    [Fact]
+    public void Duplicate_layout_survives_assigning_to_all()
+    {
+        var d = new DisplayAssignments { Layout = DisplayLayout.Duplicate, SharedItemId = "a" };
+        Assert.Equal(DisplayLayout.Duplicate, d.Assign("b", null, Monitors).Layout);
+    }
+
+    [Fact]
+    public void Extend_is_the_default_layout() => Assert.Equal(DisplayLayout.Span, new DisplayAssignments().Layout);
 
     [Fact]
     public void Removing_an_item_falls_back()

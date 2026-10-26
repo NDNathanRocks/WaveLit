@@ -1,0 +1,919 @@
+{
+ "batchcomplete": true,
+ "continue": {
+  "gsroffset": 12,
+  "continue": "gsroffset||"
+ },
+ "query": {
+  "pages": [
+   {
+    "pageid": 48786127,
+    "ns": 6,
+    "title": "File:Northern lights near Vancouver.webm",
+    "index": 8,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 17740379,
+      "width": 1920,
+      "height": 1080,
+      "duration": 61.734,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Northern_lights_near_Vancouver.webm/960px--Northern_lights_near_Vancouver.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Northern_lights_near_Vancouver.webm/1280px--Northern_lights_near_Vancouver.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/80/Northern_lights_near_Vancouver.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Northern_lights_near_Vancouver.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=48786127",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a rel=\"nofollow\" class=\"external text\" href=\"https://vimeo.com/user1612508\">saif hameed</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 3.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/8/80/Northern_lights_near_Vancouver.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp8\"",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 2298944
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/80/Northern_lights_near_Vancouver.webm/Northern_lights_near_Vancouver.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 54896
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/80/Northern_lights_near_Vancouver.webm/Northern_lights_near_Vancouver.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 623504
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/80/Northern_lights_near_Vancouver.webm/Northern_lights_near_Vancouver.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 189800
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/80/Northern_lights_near_Vancouver.webm/Northern_lights_near_Vancouver.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 1056928
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 49635123,
+    "ns": 6,
+    "title": "File:Northern Lights over Lake Myvatn.webm",
+    "index": 10,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 5986018,
+      "width": 1280,
+      "height": 720,
+      "duration": 221.48000000000002,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Northern_Lights_over_Lake_Myvatn.webm/960px--Northern_Lights_over_Lake_Myvatn.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/4a/Northern_Lights_over_Lake_Myvatn.webm/1280px--Northern_Lights_over_Lake_Myvatn.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Northern_Lights_over_Lake_Myvatn.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Northern_Lights_over_Lake_Myvatn.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=49635123",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a rel=\"nofollow\" class=\"external text\" href=\"https://vimeo.com/omote\">Omote</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 3.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/4/4a/Northern_Lights_over_Lake_Myvatn.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp8\"",
+        "width": 1280,
+        "height": 720,
+        "bandwidth": 216218
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4a/Northern_Lights_over_Lake_Myvatn.webm/Northern_Lights_over_Lake_Myvatn.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 32016
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4a/Northern_Lights_over_Lake_Myvatn.webm/Northern_Lights_over_Lake_Myvatn.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 229024
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/4a/Northern_Lights_over_Lake_Myvatn.webm/Northern_Lights_over_Lake_Myvatn.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 114208
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 84838663,
+    "ns": 6,
+    "title": "File:Nor\u00c3\u00b0urlj\u00c3\u00b3s - Northern Lights over Lake Myvatn.webm",
+    "index": 12,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 7574526,
+      "width": 1280,
+      "height": 720,
+      "duration": 221.42600000000002,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm/960px--Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm/1280px--Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/29/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=84838663",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a rel=\"nofollow\" class=\"external text\" href=\"https://vimeo.com/nytlab\">Nytlab</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 3.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/2/29/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "width": 1280,
+        "height": 720,
+        "bandwidth": 273663
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/29/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 127464
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/29/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 333448
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/29/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm/Nor%C3%B0urlj%C3%B3s_-_Northern_Lights_over_Lake_Myvatn.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 195904
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 106140825,
+    "ns": 6,
+    "title": "File:Nordlys i Kj\u00c3\u00a6rfjorden.webm",
+    "index": 9,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 2515587,
+      "width": 1920,
+      "height": 1080,
+      "duration": 8.529,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Nordlys_i_Kj%C3%A6rfjorden.webm/960px--Nordlys_i_Kj%C3%A6rfjorden.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Nordlys_i_Kj%C3%A6rfjorden.webm/1280px--Nordlys_i_Kj%C3%A6rfjorden.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/d/d9/Nordlys_i_Kj%C3%A6rfjorden.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Nordlys_i_Kj%C3%A6rfjorden.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=106140825",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a rel=\"nofollow\" class=\"external text\" href=\"https://www.youtube.com/channel/UCgFutVML7Y5gMOhl0QKL6NA\">WarningBrothers Studios</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 3.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/d/d9/Nordlys_i_Kj%C3%A6rfjorden.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 2359561
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d9/Nordlys_i_Kj%C3%A6rfjorden.webm/Nordlys_i_Kj%C3%A6rfjorden.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 164160
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d9/Nordlys_i_Kj%C3%A6rfjorden.webm/Nordlys_i_Kj%C3%A6rfjorden.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 1146424
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d9/Nordlys_i_Kj%C3%A6rfjorden.webm/Nordlys_i_Kj%C3%A6rfjorden.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 722296
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/d/d9/Nordlys_i_Kj%C3%A6rfjorden.webm/Nordlys_i_Kj%C3%A6rfjorden.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 2999072
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 141252058,
+    "ns": 6,
+    "title": "File:002 Northern lights in the night sky over M\u00c3\u00bdvatn in Iceland Video by Giles Laurent.webm",
+    "index": 2,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 99692793,
+      "width": 3840,
+      "height": 2160,
+      "duration": 5.32,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm/960px--002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f4/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm/1280px--002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/f4/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=141252058",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Giles_Laurent\" title=\"User:Giles Laurent\">Giles Laurent</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY-SA 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/f/f4/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "width": 3840,
+        "height": 2160,
+        "bandwidth": 149913974
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f4/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 231968
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f4/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 1272936
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f4/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 934296
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f4/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm/002_Northern_lights_in_the_night_sky_over_M%C3%BDvatn_in_Iceland_Video_by_Giles_Laurent.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 3941088
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 148465799,
+    "ns": 6,
+    "title": "File:Aurora Borealis over Spruce Woods, Manitoba.webm",
+    "index": 5,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 300738623,
+      "width": 4928,
+      "height": 3264,
+      "duration": 19.8,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm/960px--Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 424,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm/1280px--Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Aurora_Borealis_over_Spruce_Woods,_Manitoba.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=148465799",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:HachiBoy&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:HachiBoy (page does not exist)\">HachiBoy</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9\"",
+        "width": 4928,
+        "height": 3264,
+        "bandwidth": 121510554
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 362,
+        "height": 240,
+        "bandwidth": 213528
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 544,
+        "height": 360,
+        "bandwidth": 878736
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 724,
+        "height": 480,
+        "bandwidth": 710480
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/28/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm/Aurora_Borealis_over_Spruce_Woods%2C_Manitoba.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1630,
+        "height": 1080,
+        "bandwidth": 2669856
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 151334815,
+    "ns": 6,
+    "title": "File:\"Aurora Winds\" Echo Lake Northern Lights 1.webm",
+    "index": 7,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 374164686,
+      "width": 3840,
+      "height": 2160,
+      "duration": 156.168,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm/960px--%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm/1280px--%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/e/ea/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=151334815",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a rel=\"nofollow\" class=\"external text\" href=\"https://vimeo.com/user220234331\">No name</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 3.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/e/ea/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "width": 3840,
+        "height": 2160,
+        "bandwidth": 19167290
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ea/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 188064
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ea/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 667024
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ea/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 676240
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/ea/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm/%22Aurora_Winds%22_Echo_Lake_Northern_Lights_1.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 2673968
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 151525163,
+    "ns": 6,
+    "title": "File:Dance of the Northern Lights in Orange County NY.webm",
+    "index": 11,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 1628655,
+      "width": 1920,
+      "height": 1080,
+      "duration": 30.007,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm/960px--Dance_of_the_Northern_Lights_in_Orange_County_NY.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f1/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm/1280px--Dance_of_the_Northern_Lights_in_Orange_County_NY.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Dance_of_the_Northern_Lights_in_Orange_County_NY.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=151525163",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a rel=\"nofollow\" class=\"external autonumber\" href=\"https://www.flickr.com/photos/paramsach/\">[1]</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 2.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 434206
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f1/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 30536
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f1/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 331456
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f1/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 130424
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f1/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm/Dance_of_the_Northern_Lights_in_Orange_County_NY.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 553784
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 159511012,
+    "ns": 6,
+    "title": "File:Aurora borealis near Salzdahlum 2024-10-12 timelapse 1.webm",
+    "index": 4,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 61815,
+      "width": 1920,
+      "height": 1440,
+      "duration": 1.5,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm/960px--Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 480,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm/1280px--Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/72/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=159511012",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Profpcde&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Profpcde (page does not exist)\">Profpcde</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/7/72/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9\"",
+        "width": 1920,
+        "height": 1440,
+        "bandwidth": 329680
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/72/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 320,
+        "height": 240,
+        "bandwidth": 22488
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/72/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 480,
+        "height": 360,
+        "bandwidth": 235728
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/72/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 640,
+        "height": 480,
+        "bandwidth": 62056
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/72/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_1.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1440,
+        "height": 1080,
+        "bandwidth": 225560
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 159511019,
+    "ns": 6,
+    "title": "File:Aurora borealis near Salzdahlum 2024-10-12 timelapse 2.webm",
+    "index": 6,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 59544,
+      "width": 1920,
+      "height": 1440,
+      "duration": 1.5,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm/960px--Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 480,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/48/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm/1280px--Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/4/48/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=159511019",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Profpcde&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Profpcde (page does not exist)\">Profpcde</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/4/48/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9\"",
+        "width": 1920,
+        "height": 1440,
+        "bandwidth": 317568
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/48/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 320,
+        "height": 240,
+        "bandwidth": 22928
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/48/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 480,
+        "height": 360,
+        "bandwidth": 209064
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/48/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 640,
+        "height": 480,
+        "bandwidth": 62720
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/48/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm/Aurora_borealis_near_Salzdahlum_2024-10-12_timelapse_2.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1440,
+        "height": 1080,
+        "bandwidth": 225920
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 182271401,
+    "ns": 6,
+    "title": "File:Aurora Borealis in the steppes of Kazakhstan. October 10, 2024.webm",
+    "index": 3,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 1919481130,
+      "width": 4096,
+      "height": 2304,
+      "duration": 47.648,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm/960px--Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm/1280px--Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10,_2024.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=182271401",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/w/index.php?title=User:Astrobond&amp;action=edit&amp;redlink=1\" class=\"new\" title=\"User:Astrobond (page does not exist)\">Astrobond</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY-SA 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9\"",
+        "width": 4096,
+        "height": 2304,
+        "bandwidth": 322276885
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f3/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 152008
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f3/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 1008400
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f3/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 906184
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/f3/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm/Aurora_Borealis_in_the_steppes_of_Kazakhstan._October_10%2C_2024.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 3963104
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pageid": 184521400,
+    "ns": 6,
+    "title": "File:Aurora-Iceland Northern Lights timelapse 2026-02-06.hd.webm",
+    "index": 1,
+    "imagerepository": "local",
+    "videoinfo": [
+     {
+      "size": 83077861,
+      "width": 1920,
+      "height": 1080,
+      "duration": 8.433,
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm/960px--Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 640,
+      "thumbheight": 360,
+      "responsiveUrls": {
+       "2": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/ff/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm/1280px--Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo"
+      },
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=184521400",
+      "extmetadata": {
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Lorax\" title=\"User:Lorax\">G. Edward Johnson</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "derivatives": [
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/f/ff/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm?utm_source=commons.wikimedia.org&utm_campaign=api&utm_content=original",
+        "type": "video/webm; codecs=\"vp9\"",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 78812153
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/ff/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm.240p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "240p.vp9.webm",
+        "width": 426,
+        "height": 240,
+        "bandwidth": 72600
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/ff/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm.360p.mpeg4.mov",
+        "type": "video/quicktime; codecs=\"mp4v\"",
+        "transcodekey": "360p.mpeg4.mov",
+        "width": 640,
+        "height": 360,
+        "bandwidth": 1075408
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/ff/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm.480p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "480p.vp9.webm",
+        "width": 854,
+        "height": 480,
+        "bandwidth": 665672
+       },
+       {
+        "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/f/ff/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm/Aurora-Iceland_Northern_Lights_timelapse_2026-02-06.hd.webm.1080p.vp9.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "transcodekey": "1080p.vp9.webm",
+        "width": 1920,
+        "height": 1080,
+        "bandwidth": 3692144
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

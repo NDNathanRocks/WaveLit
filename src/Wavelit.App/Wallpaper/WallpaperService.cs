@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Windows.Media.Imaging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
@@ -35,11 +35,17 @@ public sealed class WallpaperService : IAsyncDisposable
 
     private UiThread? _thread;
     private ConditionsMonitor? _conditions;
+    private PointerFeed? _pointer;
     private CoreWebView2Environment? _environment;
     private DesktopLayer? _layer;
     private IReadOnlyList<MonitorInfo> _monitors = [];
     private readonly Dictionary<string, HostEntry> _hosts = new();
     private readonly Dictionary<string, Task<ResolvedWallpaper>> _resolving = new();
+    // Items that can't be cut into per-display slices (web pages, multi-pass shaders); Extend shows
+    // them in one window over every display instead.
+    private readonly HashSet<string> _singleCanvasItems = new();
+    // Shared timeline for Extend slices, so every display shows the same moment of the wallpaper.
+    private (string? ItemId, long EpochMs) _canvasClock;
     private bool _syncRunning;
     private bool _syncPending;
     private bool _userPaused;
@@ -101,6 +107,7 @@ public sealed class WallpaperService : IAsyncDisposable
             }
 
             _conditions = new ConditionsMonitor(_thread!.Dispatcher, _logger);
+            _pointer = new PointerFeed(_thread.Dispatcher, () => _hosts.Values.Select(e => (e.Host, e.IsSlice)));
             _conditions.Tick += (_, _) => OnTick();
             _settings.Changed += OnSettingsChanged;
             RequestSync();
@@ -116,6 +123,20 @@ public sealed class WallpaperService : IAsyncDisposable
 
     /// <summary>Re-reads settings and reloads anything that changed.</summary>
     public void Refresh() => Post(RequestSync);
+
+    /// <summary>Diagnostics (<c>--frame-stats</c>): logs every window's frame pacing (rate, p95 jitter).</summary>
+    public void LogFrameStats() => Post(() =>
+    {
+        foreach (var entry in _hosts.Values) entry.Host.RequestFrameStats();
+    });
+
+    /// <summary>Reloads every window showing <paramref name="itemId"/> (e.g. after its effect changed).</summary>
+    public void Reload(string itemId) => Post(() =>
+    {
+        var options = RenderOptions.From(_settings.Current);
+        foreach (var entry in _hosts.Values.Where(e => e.DesiredItemId == itemId))
+            StartLoad(entry, options);
+    });
 
     private void OnSettingsChanged(object? sender, AppSettings e) => Post(RequestSync);
 
@@ -195,6 +216,7 @@ public sealed class WallpaperService : IAsyncDisposable
                 _hosts[spec.Key] = entry;
                 host.Failed += (_, message) => OnHostFailed(entry, message);
                 host.Crashed += (_, _) => OnHostCrashed(entry);
+                host.MediaSized += (_, size) => OnMediaSized(size.ItemId, size.Width, size.Height);
                 try
                 {
                     await host.InitializeAsync(_layer, spec.Bounds, _environment);
@@ -212,6 +234,10 @@ public sealed class WallpaperService : IAsyncDisposable
                 entry.Host.Reposition(_layer, spec.Bounds, spec.Monitors);
             }
 
+            entry.IsSlice = spec.IsSlice;
+            entry.Host.SetView(spec.View, spec.ClockEpochMs);
+            entry.Host.SetFraming(spec.ItemId is null ? null
+                : settings.Framings.GetValueOrDefault(MediaFraming.Key(spec.ItemId, spec.View.CanvasWidth, spec.View.CanvasHeight)));
             entry.Host.ApplyOptions(options);
             if (entry.DesiredItemId != spec.ItemId || entry.Host.LoadedItemId is null && spec.ItemId is not null && entry.LoadTask is null)
             {
@@ -224,16 +250,56 @@ public sealed class WallpaperService : IAsyncDisposable
         Publish(desktopAvailable: true);
     }
 
-    private sealed record HostSpec(string Key, IReadOnlyList<MonitorInfo> Monitors, RECT Bounds, string? ItemId);
+    /// <summary>
+    /// The cursor feed runs only while a visible (Playing) wallpaper wants it: the interactive layer is on
+    /// or the shader reacts to the mouse. Covered, frozen, paused or suspended wallpapers get nothing.
+    /// </summary>
+    private void UpdatePointerFeed()
+    {
+        if (_pointer is null) return;
+        _pointer.ClickBursts = _settings.Current.Interactive.ClickBursts;
+        _pointer.Enabled = !_disposed && !_userPaused
+            && _hosts.Values.Any(e => e.Decision.State == PlaybackState.Playing && e.Host.NeedsPointer);
+    }
+
+    private sealed record HostSpec(string Key, IReadOnlyList<MonitorInfo> Monitors, RECT Bounds, string? ItemId,
+        CanvasView View, long? ClockEpochMs, bool IsSlice);
 
     private List<HostSpec> DesiredHosts(AppSettings settings)
     {
         var d = settings.Displays;
         if (_monitors.Count == 0) return [];
-        if (d.Layout == DisplayLayout.Span)
-            return [new HostSpec(SpanKey, _monitors, MonitorService.GetVirtualBounds(_monitors), d.SharedItemId)];
-        return _monitors.Select(m => new HostSpec(m.Id, [m], m.Bounds, d.ItemFor(m.Id))).ToList();
+        if (d.Layout == DisplayLayout.Span && _monitors.Count > 1)
+        {
+            if (NeedsSingleCanvas(d.SharedItemId))
+            {
+                // One window can't scale per display, so the fallback uses plain pixel positions.
+                var plain = CanvasLayout.Extend(_monitors);
+                return [new HostSpec(SpanKey, _monitors, plain.Bounds, d.SharedItemId, plain.Whole, null, IsSlice: false)];
+            }
+            var canvas = CanvasLayout.Extend(_monitors, settings.Canvas);
+
+            // One window per display, each drawing its slice of the canvas on a shared clock. Keys match
+            // the per-display hosts, so switching between Extend and Same-on-every-display needs no reload.
+            if (_canvasClock.ItemId != d.SharedItemId)
+                _canvasClock = (d.SharedItemId, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            return _monitors.Select(m => new HostSpec(m.Id, [m], m.Bounds, d.SharedItemId,
+                canvas.Slices[m.Id], _canvasClock.EpochMs, IsSlice: true)).ToList();
+        }
+        return _monitors.Select(m => new HostSpec(m.Id, [m], m.Bounds, d.ItemFor(m.Id),
+            CanvasView.Single(m.Bounds.Width, m.Bounds.Height), null, IsSlice: false)).ToList();
     }
+
+    private bool NeedsSingleCanvas(string? itemId)
+        => itemId is not null && (_singleCanvasItems.Contains(itemId) || _library.Find(itemId)?.Kind == WallpaperKind.Web);
+
+    private static bool CanSlice(ResolvedWallpaper wallpaper) => wallpaper switch
+    {
+        ResolvedWallpaper.Web => false,
+        // Feedback buffers would evolve differently in every slice.
+        ResolvedWallpaper.Shader sh => sh.Program.Passes.All(p => p.Type != "buffer"),
+        _ => true,
+    };
 
     private void StartLoad(HostEntry entry, RenderOptions options)
     {
@@ -260,9 +326,21 @@ public sealed class WallpaperService : IAsyncDisposable
 
             var resolved = await ResolveSharedAsync(item, ct);
             ct.ThrowIfCancellationRequested();
+            if (!CanSlice(resolved))
+            {
+                // Remembered even outside Extend, so switching to Extend later picks the right window layout.
+                _singleCanvasItems.Add(item.Id);
+                if (entry.IsSlice)
+                {
+                    _logger.LogInformation("{Item} can't be split per display; extending it as one window", item.Id);
+                    RequestSync();
+                    return;
+                }
+            }
             await entry.Host.LoadAsync(resolved, options, ct);
             entry.Error = null;
             _logger.LogInformation("Host {Key} now shows {Item}", entry.Host.Key, item.Id);
+            UpdatePointerFeed();
             _ = CaptureThumbnailLaterAsync(entry, item, ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -294,7 +372,7 @@ public sealed class WallpaperService : IAsyncDisposable
 
     private async Task CaptureThumbnailLaterAsync(HostEntry entry, WallpaperItem item, CancellationToken ct)
     {
-        if (item.ThumbnailUrl is not null || item.IsBuiltIn) return;
+        if (item.ThumbnailUrl is not null || item.IsBuiltIn || item.Kind == WallpaperKind.Image) return; // images are their own thumbnail
         string path = CapturedThumbnailPath(_paths, item.Id);
         if (File.Exists(path)) return;
         try
@@ -324,6 +402,13 @@ public sealed class WallpaperService : IAsyncDisposable
         if (entry.Host.LoadedItemId is null && entry.DesiredItemId is not null)
             StartLoad(entry, RenderOptions.From(_settings.Current));
         Publish(desktopAvailable: true);
+    }
+
+    // Local videos don't come with a size; remember it once the renderer knows it.
+    private void OnMediaSized(string itemId, int width, int height)
+    {
+        if (_library.Find(itemId) is not { IsBuiltIn: false } item || (item.Width == width && item.Height == height)) return;
+        _library.Upsert(item with { Width = width, Height = height });
     }
 
     private void OnHostCrashed(HostEntry entry)
@@ -382,7 +467,7 @@ public sealed class WallpaperService : IAsyncDisposable
             if (entry.Decision == decision) continue;
             entry.Decision = decision;
             changed = true;
-            _logger.LogDebug("Host {Key} → {State} ({Reason})", entry.Host.Key, decision.State, decision.Reason);
+            _logger.LogDebug("Host {Key} â†’ {State} ({Reason})", entry.Host.Key, decision.State, decision.Reason);
             try
             {
                 await entry.Host.SetStateAsync(decision.State);
@@ -400,6 +485,7 @@ public sealed class WallpaperService : IAsyncDisposable
             EcoQos.Set(allIdle);
         }
 
+        UpdatePointerFeed();
         if (changed) Publish(desktopAvailable: _layer is not null);
     }
 
@@ -410,7 +496,7 @@ public sealed class WallpaperService : IAsyncDisposable
             h.Host.Monitors.Select(m => m.Id).ToList(),
             h.Host.LoadedItemId ?? h.DesiredItemId,
             h.Decision.State,
-            h.LoadTask is not null ? "Loading…" : h.Decision.Reason,
+            h.LoadTask is not null ? "Loadingâ€¦" : h.Decision.Reason,
             h.Error)).ToList();
         _snapshot = new WallpaperSnapshot(_monitors, hosts, _userPaused, desktopAvailable);
         try
@@ -423,6 +509,49 @@ public sealed class WallpaperService : IAsyncDisposable
             _browserProcessIds = [];
         }
         Changed?.Invoke(this, _snapshot);
+    }
+
+    /// <summary>
+    /// Diagnostics (<c>--snapshot</c>): saves what every wallpaper window is drawing, laid out like the
+    /// displays at half size, to logs/snapshot.png. Used to check that Extend lines up across the bezels.
+    /// </summary>
+    public async Task SaveSnapshotAsync()
+    {
+        if (_thread is null) return;
+        await _thread.InvokeAsync(async () =>
+        {
+            if (_monitors.Count == 0) return;
+            const double scale = 0.5;
+            var all = MonitorService.GetVirtualBounds(_monitors);
+            var visual = new System.Windows.Media.DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(System.Windows.Media.Brushes.Magenta, null, new System.Windows.Rect(0, 0, all.Width * scale, all.Height * scale));
+                foreach (var entry in _hosts.Values.ToList())
+                {
+                    BitmapSource? frame = null;
+                    try
+                    {
+                        frame = await entry.Host.CaptureFrameAsync();
+                    }
+                    catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException)
+                    {
+                        _logger.LogDebug(ex, "Snapshot of {Key} failed", entry.Host.Key);
+                    }
+                    if (frame is null) continue;
+                    var b = entry.Host.Bounds;
+                    dc.DrawImage(frame, new System.Windows.Rect((b.Left - all.Left) * scale, (b.Top - all.Top) * scale, b.Width * scale, b.Height * scale));
+                }
+            }
+            var bitmap = new RenderTargetBitmap((int)(all.Width * scale), (int)(all.Height * scale), 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+            bitmap.Render(visual);
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            string path = Path.Combine(_paths.Logs, "snapshot.png");
+            await using (var fs = File.Create(path))
+                encoder.Save(fs);
+            _logger.LogInformation("Saved wallpaper snapshot to {Path}", path);
+        });
     }
 
     /// <summary>All WebView2 process ids (as of the last state change), for diagnostics.</summary>
@@ -445,6 +574,7 @@ public sealed class WallpaperService : IAsyncDisposable
             await _thread.InvokeAsync(() =>
             {
                 _disposed = true;
+                _pointer?.Dispose();
                 _conditions?.Dispose();
                 DisposeAllHosts();
                 if (_ecoQos) EcoQos.Set(false);
@@ -467,6 +597,7 @@ public sealed class WallpaperService : IAsyncDisposable
         public Task? LoadTask { get; set; }
         public PlaybackDecision Decision { get; set; } = PlaybackDecision.Play;
         public string? Error { get; set; }
+        public bool IsSlice { get; set; }
 
         public void Dispose()
         {

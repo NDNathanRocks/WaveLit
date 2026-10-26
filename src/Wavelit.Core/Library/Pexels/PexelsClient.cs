@@ -151,13 +151,13 @@ public sealed class PexelsClient(IHttpClientFactory httpFactory, SecretStore sec
 public static class VideoFileSelector
 {
     /// <summary>
-    /// Chooses the smallest MP4 that still covers <paramref name="targetHeight"/>; decoding 4K for a
+    /// Chooses the smallest MP4 or WebM that still covers <paramref name="targetHeight"/>; decoding 4K for a
     /// 1080p display costs ~4× the GPU time for no visible benefit.
     /// </summary>
     public static RemoteVideoFile? Select(IReadOnlyList<RemoteVideoFile> files, int targetHeight)
     {
         var mp4 = files
-            .Where(f => f.FileType.Equals("video/mp4", StringComparison.OrdinalIgnoreCase)
+            .Where(f => (f.FileType.Equals("video/mp4", StringComparison.OrdinalIgnoreCase) || f.FileType.Equals("video/webm", StringComparison.OrdinalIgnoreCase))
                         && f.Url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
                         && f.Width >= f.Height
                         && (f.Fps is null || f.Fps <= 61))

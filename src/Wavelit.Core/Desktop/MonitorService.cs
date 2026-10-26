@@ -3,17 +3,28 @@ using Wavelit.Core.Interop;
 
 namespace Wavelit.Core.Desktop;
 
-/// <summary>A physical display. All rectangles are in physical (per-monitor-DPI-aware) screen pixels.</summary>
+/// <summary>
+/// A physical display. All rectangles are in physical (per-monitor-DPI-aware) screen pixels.
+/// <see cref="WidthMm"/>/<see cref="HeightMm"/> are the panel's real size from its EDID (0 when unknown),
+/// in the current orientation.
+/// </summary>
 public sealed record MonitorInfo(
     string Id,
     string DeviceName,
     int Index,
     RECT Bounds,
     RECT WorkArea,
-    bool IsPrimary)
+    bool IsPrimary,
+    int WidthMm = 0,
+    int HeightMm = 0)
 {
     public string DisplayName => $"Display {Index + 1}{(IsPrimary ? " (Primary)" : "")}";
     public string Resolution => $"{Bounds.Width} × {Bounds.Height}";
+
+    /// <summary>Millimetres per pixel, or null when the panel size is unknown or implausible.</summary>
+    public double? MmPerPixel => WidthMm is > 50 and < 3000 && Bounds.Width > 0 ? (double)WidthMm / Bounds.Width : null;
+
+    public double? DiagonalInches => WidthMm > 0 && HeightMm > 0 ? Math.Sqrt(WidthMm * WidthMm + HeightMm * HeightMm) / 25.4 : null;
 }
 
 public static class MonitorService
@@ -33,15 +44,46 @@ public static class MonitorService
         return raw
             .OrderBy(r => r.info.rcMonitor.Left)
             .ThenBy(r => r.info.rcMonitor.Top)
-            .Select((r, i) => new MonitorInfo(
-                r.id,
-                r.info.szDevice,
-                i,
-                r.info.rcMonitor,
-                r.info.rcWork,
-                (r.info.dwFlags & NativeMethods.MONITORINFOF_PRIMARY) != 0))
+            .Select((r, i) =>
+            {
+                var (wmm, hmm) = PhysicalSize(r.info.szDevice);
+                return new MonitorInfo(
+                    r.id,
+                    r.info.szDevice,
+                    i,
+                    r.info.rcMonitor,
+                    r.info.rcWork,
+                    (r.info.dwFlags & NativeMethods.MONITORINFOF_PRIMARY) != 0,
+                    wmm,
+                    hmm);
+            })
             .ToList();
     }
+
+    // HORZSIZE/VERTSIZE on a display DC report the panel's EDID size, already rotated with the display.
+    private static (int WidthMm, int HeightMm) PhysicalSize(string deviceName)
+    {
+        nint dc = CreateDC(null, deviceName, null, 0);
+        if (dc == 0) return (0, 0);
+        try
+        {
+            return (GetDeviceCaps(dc, 4 /* HORZSIZE */), GetDeviceCaps(dc, 6 /* VERTSIZE */));
+        }
+        finally
+        {
+            DeleteDC(dc);
+        }
+    }
+
+    [DllImport("gdi32.dll", CharSet = CharSet.Unicode)]
+    private static extern nint CreateDC(string? driver, string device, string? output, nint initData);
+
+    [DllImport("gdi32.dll")]
+    private static extern int GetDeviceCaps(nint hdc, int index);
+
+    [DllImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteDC(nint hdc);
 
     /// <summary>Bounding box of all monitors (the "virtual screen").</summary>
     public static RECT GetVirtualBounds(IReadOnlyList<MonitorInfo> monitors)

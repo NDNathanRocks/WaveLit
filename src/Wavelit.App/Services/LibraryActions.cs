@@ -18,6 +18,7 @@ public sealed class LibraryActions(
     MediaCache cache,
     WallpaperService wallpapers,
     AppPaths paths,
+    IEnumerable<Wavelit.Core.Library.Sources.IWallpaperSource> sources,
     ILogger<LibraryActions> logger)
 {
     /// <summary>
@@ -28,9 +29,12 @@ public sealed class LibraryActions(
     {
         var item = library.Find(result.Item.Id) ?? result.Item;
 
-        if (item.Source == WallpaperSources.Pexels && (item.FilePath is null || !cache.TryGet(item.FilePath, out _)))
+        if (item.IsCachedMedia && (item.FilePath is null || !cache.TryGet(item.FilePath, out _)))
         {
-            item = await resolver.AcquireVideoAsync(result with { Item = item }, TargetHeight(monitorId), progress, ct);
+            var prepared = result with { Item = item };
+            if (sources.FirstOrDefault(s => s.Id == item.Source) is { } source)
+                prepared = await source.PrepareAsync(prepared, ct);
+            item = await resolver.AcquireAsync(prepared, TargetHeight(monitorId), progress, ct);
         }
         else if (item.Source == WallpaperSources.Shadertoy)
         {
@@ -75,10 +79,16 @@ public sealed class LibraryActions(
         if (item.IsBuiltIn) return;
         settings.Update(s => s with { Displays = s.Displays.WithoutItem(item.Id, BuiltInShaders.DefaultItemId) });
         library.Remove(item.Id);
-        if (item.Source == WallpaperSources.Pexels && item.FilePath is not null)
+        if (item.IsCachedMedia && item.FilePath is not null)
         {
             try { File.Delete(cache.PathFor(item.FilePath)); }
             catch (IOException ex) { logger.LogDebug(ex, "Could not delete cached file"); }
+        }
+        if (item.Source == WallpaperSources.Generated && item.FilePath is not null
+            && Path.GetFullPath(item.FilePath).StartsWith(paths.Creations + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            try { File.Delete(item.FilePath); }
+            catch (IOException ex) { logger.LogDebug(ex, "Could not delete creation"); }
         }
         try { File.Delete(WallpaperService.CapturedThumbnailPath(paths, item.Id)); }
         catch (IOException) { }
@@ -102,7 +112,7 @@ public sealed class LibraryActions(
     private HashSet<string> InUseCacheFiles()
         => settings.Current.Displays.ReferencedItemIds()
             .Select(library.Find)
-            .Where(i => i?.Source == WallpaperSources.Pexels && i.FilePath is not null)
+            .Where(i => i is { IsCachedMedia: true, FilePath: not null })
             .Select(i => Path.GetFileName(i!.FilePath!))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 

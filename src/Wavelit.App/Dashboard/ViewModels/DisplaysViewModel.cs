@@ -26,6 +26,12 @@ public sealed partial class DisplayTileViewModel(DisplaysViewModel owner, Monito
     private void Choose() => owner.ChooseFor(this);
 }
 
+/// <summary>A labelled option for a combo box (value as stored in settings).</summary>
+public sealed record Choice(string Value, string Label)
+{
+    public override string ToString() => Label; // what screen readers announce
+}
+
 /// <summary>Multi-monitor layout: same / per display / span, with a live map of the displays.</summary>
 public sealed partial class DisplaysViewModel : ObservableObject, IDisposable
 {
@@ -38,10 +44,14 @@ public sealed partial class DisplaysViewModel : ObservableObject, IDisposable
     {
         Context = context;
         _wallpapers = wallpapers;
+        Framing = new FramingEditorViewModel(context, wallpapers);
         context.PropertyChanged += OnContextChanged;
         context.Settings.Changed += OnSettingsChanged;
+        context.Library.Changed += OnLibraryChanged;
         Rebuild();
     }
+
+    public FramingEditorViewModel Framing { get; }
 
     public DashboardContext Context { get; }
     public ObservableCollection<DisplayTileViewModel> Tiles { get; } = [];
@@ -73,6 +83,23 @@ public sealed partial class DisplaysViewModel : ObservableObject, IDisposable
         set { if (value) Context.Actions.SetLayout(DisplayLayout.Span); }
     }
 
+    /// <summary>Extend: size each screen's part of the picture by its real pixel size (from the monitor's EDID).</summary>
+    public bool MatchPhysicalSize
+    {
+        get => Context.Settings.Current.Canvas.MatchPhysicalSize;
+        set => Context.Settings.Update(s => s with { Canvas = s.Canvas with { MatchPhysicalSize = value } });
+    }
+
+    /// <summary>Extend: millimetres of picture hidden behind the frames between screens.</summary>
+    public double BezelGapMm
+    {
+        get => Context.Settings.Current.Canvas.BezelGapMm;
+        set => Context.Settings.Update(s => s with { Canvas = s.Canvas with { BezelGapMm = (int)Math.Round(value) } });
+    }
+
+    public string PhysicalSizes => string.Join("   ·   ", Context.Snapshot.Monitors.Select(m =>
+        m.DiagonalInches is { } inches ? $"{m.DisplayName}: {inches:0.0}\" ({m.WidthMm} × {m.HeightMm} mm)" : $"{m.DisplayName}: size unknown"));
+
     public void ChooseFor(DisplayTileViewModel tile)
     {
         Context.SelectTarget(Layout == DisplayLayout.Span || !HasMultipleDisplays ? null : tile.Monitor.Id);
@@ -85,7 +112,13 @@ public sealed partial class DisplaysViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(IsDuplicate));
             OnPropertyChanged(nameof(IsPerDisplay));
             OnPropertyChanged(nameof(IsSpan));
+            OnPropertyChanged(nameof(MatchPhysicalSize));
+            OnPropertyChanged(nameof(BezelGapMm));
+            Framing.Refresh();
         });
+
+    private void OnLibraryChanged(object? sender, EventArgs e)
+        => System.Windows.Application.Current?.Dispatcher.BeginInvoke(Framing.Refresh);
 
     private void OnContextChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -132,11 +165,15 @@ public sealed partial class DisplaysViewModel : ObservableObject, IDisposable
 
         OnPropertyChanged(nameof(HasMultipleDisplays));
         OnPropertyChanged(nameof(UserPaused));
+        OnPropertyChanged(nameof(PhysicalSizes));
+        Framing.Refresh();
     }
 
     public void Dispose()
     {
         Context.PropertyChanged -= OnContextChanged;
         Context.Settings.Changed -= OnSettingsChanged;
+        Context.Library.Changed -= OnLibraryChanged;
+        Framing.Dispose();
     }
 }

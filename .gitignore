@@ -9,3 +9,6 @@ artifacts/
 publish/
 AppPackages/
 BundleArtifacts/
+
+# Local tool caches
+.serena/

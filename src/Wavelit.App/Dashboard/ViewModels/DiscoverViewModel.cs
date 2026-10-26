@@ -2,44 +2,56 @@ using System.Collections.ObjectModel;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Wavelit.App.Wallpaper;
+using Wavelit.App.Services;
 using Wavelit.Core.Library;
 using Wavelit.Core.Library.BuiltIn;
-using Wavelit.Core.Library.Pexels;
 using Wavelit.Core.Library.Shadertoy;
+using Wavelit.Core.Library.Sources;
 
 namespace Wavelit.App.Dashboard.ViewModels;
 
-/// <summary>Unified Pexels + Shadertoy search.</summary>
+/// <summary>
+/// One search over every online library: free sources need no key (Wallhaven, Commons, NASA, Openverse), others
+/// use the user's free key (Pixabay, Pexels, Shadertoy). Results are interleaved so every source shows.
+/// With an empty search box the page is curated: Wavelit's shaders, the hand-picked Featured list, then the
+/// selected mood's curated source queries (plan §16.3).
+/// </summary>
 public sealed partial class DiscoverViewModel : ObservableObject, IDisposable
 {
     private const int ShaderPageSize = 24;
-    private readonly PexelsClient _pexels;
+    private readonly IReadOnlyList<IWallpaperSource> _sources;
     private readonly ShadertoyClient _shadertoy;
+    private readonly CreateService _create;
     private readonly DispatcherTimer _debounce;
     private readonly SemaphoreSlim _detailsGate = new(4, 4);
+    private readonly Dictionary<string, (int Page, bool HasMore)> _paging = new();
+    private readonly HashSet<string> _shown = [];
     private CancellationTokenSource? _searchCts;
-    private int _pexelsPage;
-    private bool _pexelsHasMore;
     private int _shaderFrom;
     private bool _shaderHasMore;
     private bool _loadingMore;
     private bool _initialized;
+    private SourceQuery? _activeQuery;
 
     [ObservableProperty] private string _query = "";
     [ObservableProperty] private bool _includeVideos = true;
+    [ObservableProperty] private bool _includeImages = true;
     [ObservableProperty] private bool _includeShaders = true;
+    [ObservableProperty] private bool _fitOnly;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsInitialLoading))]
     private bool _isLoading;
     [ObservableProperty] private string? _emptyMessage;
     [ObservableProperty] private string? _sourceNotice;
+    /// <summary>The mood chip; null while the user is searching their own words.</summary>
+    [ObservableProperty] private Mood? _selectedMood = Moods.Featured;
 
-    public DiscoverViewModel(DashboardContext context, PexelsClient pexels, ShadertoyClient shadertoy)
+    public DiscoverViewModel(DashboardContext context, IEnumerable<IWallpaperSource> sources, ShadertoyClient shadertoy, CreateService create)
     {
         Context = context;
-        _pexels = pexels;
+        _sources = sources.ToList();
         _shadertoy = shadertoy;
+        _create = create;
         _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(450) };
         _debounce.Tick += (_, _) =>
         {
@@ -51,7 +63,8 @@ public sealed partial class DiscoverViewModel : ObservableObject, IDisposable
 
     public DashboardContext Context { get; }
     public ObservableCollection<CardViewModel> Results { get; } = [];
-    public bool HasMore => _pexelsHasMore || _shaderHasMore;
+    public IReadOnlyList<Mood> MoodChips => Moods.All;
+    public bool HasMore => _paging.Values.Any(p => p.HasMore) || _shaderHasMore;
     /// <summary>Spinner only for the first page; infinite scroll loads quietly below the fold.</summary>
     public bool IsInitialLoading => IsLoading && Results.Count == 0;
 
@@ -63,15 +76,34 @@ public sealed partial class DiscoverViewModel : ObservableObject, IDisposable
         _ = SearchAsync();
     }
 
-    partial void OnQueryChanged(string value) => RestartDebounce();
+    partial void OnQueryChanged(string value)
+    {
+        // Typing leaves the mood chips; clearing the box returns to the curated home.
+        if (value.Trim().Length > 0) SelectedMood = null;
+        else SelectedMood ??= Moods.Featured;
+        RestartDebounce();
+    }
+
+    partial void OnSelectedMoodChanged(Mood? value)
+    {
+        if (value is null) return;
+        Query = "";
+        if (_initialized) _ = SearchAsync();
+    }
+
     partial void OnIncludeVideosChanged(bool value) => RestartDebounce();
+    partial void OnIncludeImagesChanged(bool value) => RestartDebounce();
     partial void OnIncludeShadersChanged(bool value) => RestartDebounce();
+    partial void OnFitOnlyChanged(bool value) => RestartDebounce();
 
     private void RestartDebounce()
     {
         _debounce.Stop();
         _debounce.Start();
     }
+
+    private IEnumerable<IWallpaperSource> ActiveSources => _sources.Where(s => s.IsAvailable
+        && (s.Kind == SourceKind.Videos ? IncludeVideos : IncludeImages));
 
     [RelayCommand]
     private Task SearchAsync()
@@ -81,16 +113,27 @@ public sealed partial class DiscoverViewModel : ObservableObject, IDisposable
         _searchCts?.Dispose();
         _searchCts = new CancellationTokenSource();
         Results.Clear();
-        _pexelsPage = 0;
+        _shown.Clear();
+        _paging.Clear();
+        foreach (var s in ActiveSources) _paging[s.Id] = (0, true);
         _shaderFrom = 0;
-        _pexelsHasMore = IncludeVideos && _pexels.IsConfigured;
         _shaderHasMore = IncludeShaders && _shadertoy.IsConfigured;
         EmptyMessage = null;
         SourceNotice = BuildSourceNotice();
 
-        if (!_pexels.IsConfigured && !_shadertoy.IsConfigured || !_pexelsHasMore && !_shaderHasMore)
+        var (cw, ch) = _create.CanvasSize(Context.TargetMonitorId);
+        int maxHeight = Context.Snapshot.Monitors.Count > 0 ? Context.Snapshot.Monitors.Max(m => m.Bounds.Height) : 1080;
+        string text = Query.Trim();
+        var mood = text.Length == 0 ? SelectedMood ?? Moods.Featured : null;
+        _activeQuery = new SourceQuery(text, cw, ch, maxHeight, FitOnly, mood);
+
+        // The included wallpapers always lead when shaders are wanted (they need no key and fit any setup),
+        // then the hand-picked Featured list for the mood.
+        if (IncludeShaders) ShowBuiltIns(mood);
+        if (mood is not null) ShowFeatured(mood, _activeQuery);
+        if (_paging.Count == 0 && !_shaderHasMore)
         {
-            ShowBuiltIns();
+            if (Results.Count == 0) EmptyMessage = "Turn on Videos, Images or Shaders to search.";
             return Task.CompletedTask;
         }
         return LoadPageAsync(_searchCts.Token);
@@ -114,50 +157,70 @@ public sealed partial class DiscoverViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void OpenSettings() => Context.RequestNavigation("Settings");
 
-    private void ShowBuiltIns()
+    private void ShowBuiltIns(Mood? mood)
     {
-        foreach (var item in BuiltInShaders.Items.Where(i => string.IsNullOrWhiteSpace(Query) || i.Title.Contains(Query.Trim(), StringComparison.OrdinalIgnoreCase)))
+        string q = Query.Trim();
+        var items = mood is null
+            ? BuiltInShaders.Items.Where(i => i.Title.Contains(q, StringComparison.OrdinalIgnoreCase))
+            : BuiltInShaders.Items.Where(i => mood == Moods.Featured || BuiltInShaders.MoodOf(i.Id) == mood.Id);
+        foreach (var item in items)
             AddCard(new CardViewModel(new SearchResult(item), Context.ApplyAsync));
-        if (Results.Count == 0) EmptyMessage = "No matches in the included wallpapers.";
+    }
+
+    private void ShowFeatured(Mood mood, SourceQuery query)
+    {
+        foreach (var result in FeaturedCatalog.For(mood))
+        {
+            if (result.Item.Kind == WallpaperKind.Video ? !IncludeVideos : !IncludeImages) continue;
+            var card = new CardViewModel(result, Context.ApplyAsync) { FitLabel = FitLabel(result.Item, query) };
+            if (query.FitOnly && card.FitLabel is not ("Perfect fit" or "Good fit" or null)) continue;
+            AddCard(card);
+        }
     }
 
     private string? BuildSourceNotice()
     {
-        if (!_pexels.IsConfigured && !_shadertoy.IsConfigured)
-            return "Showing the included wallpapers. Add free Pexels or Shadertoy API keys in Settings to search thousands more.";
-        if (IncludeVideos && !_pexels.IsConfigured)
-            return "Add a free Pexels API key in Settings to include videos.";
+        if (IncludeVideos && !_sources.Any(s => s.Id == WallpaperSources.Pixabay && s.IsAvailable))
+            return "Videos come from Wikimedia Commons. Add a free Pixabay key in Settings (instant sign-up) for thousands of 4K stock videos.";
         if (IncludeShaders && !_shadertoy.IsConfigured)
-            return "Add a Shadertoy API key in Settings to include live shaders.";
+            return "Shaders: showing Wavelit's own. Shadertoy search needs a Shadertoy key (optional). You can also paste any shader in Library.";
         return null;
     }
 
     private async Task LoadPageAsync(CancellationToken ct)
     {
+        if (_activeQuery is null) return;
         IsLoading = true;
         var errors = new List<string>();
         try
         {
-            string q = Query.Trim();
-            int maxHeight = Context.Snapshot.Monitors.Count > 0 ? Context.Snapshot.Monitors.Max(m => m.Bounds.Height) : 1080;
-
-            Task<SearchPage?> videos = _pexelsHasMore
-                ? Catch(() => _pexels.SearchAsync(q, ++_pexelsPage, maxHeight, ct), errors)
-                : Task.FromResult<SearchPage?>(null);
+            var query = _activeQuery;
+            var pending = _paging.Where(p => p.Value.HasMore).Select(p => p.Key).ToList();
+            var searches = pending.Select(id => (Id: id, Task: Catch(() =>
+                _sources.First(s => s.Id == id).SearchAsync(query, _paging[id].Page + 1, ct), errors))).ToList();
             Task<ShaderIds?> shaders = _shaderHasMore
                 ? Catch(async () =>
                 {
-                    var (ids, total) = await _shadertoy.SearchIdsAsync(q, _shaderFrom, ShaderPageSize, ct);
+                    var (ids, total) = await _shadertoy.SearchIdsAsync(query.Text, _shaderFrom, ShaderPageSize, ct);
                     return new ShaderIds(ids, total);
                 }, errors)
                 : Task.FromResult<ShaderIds?>(null);
 
-            await Task.WhenAll(videos, shaders);
+            await Task.WhenAll(searches.Select(s => (Task)s.Task).Append(shaders));
             ct.ThrowIfCancellationRequested();
 
-            var videoPage = videos.Result;
-            if (videoPage is not null) _pexelsHasMore = videoPage.HasMore;
-            else if (_pexelsHasMore) _pexelsHasMore = false;
+            var lists = new List<List<CardViewModel>>();
+            foreach (var (id, task) in searches)
+            {
+                var page = task.Result;
+                var (n, _) = _paging[id];
+                _paging[id] = (n + 1, page?.HasMore == true);
+                var cards = (page?.Results ?? [])
+                    .Select(r => new CardViewModel(r, Context.ApplyAsync) { FitLabel = FitLabel(r.Item, query) })
+                    .Where(c => !query.FitOnly || c.FitLabel is "Perfect fit" or "Good fit" || c.FitLabel is null)
+                    .ToList();
+                lists.Add(cards);
+            }
 
             var shaderCards = new List<CardViewModel>();
             if (shaders.Result is { } s)
@@ -178,25 +241,23 @@ public sealed partial class DiscoverViewModel : ObservableObject, IDisposable
                     };
                     shaderCards.Add(new CardViewModel(new SearchResult(placeholder), Context.ApplyAsync) { IsDetailsLoaded = false });
                 }
+                lists.Add(shaderCards);
             }
             else
             {
                 _shaderHasMore = false;
             }
 
-            // Interleave so both sources are visible at the top of the grid.
-            var videoCards = (videoPage?.Results ?? []).Select(r => new CardViewModel(r, Context.ApplyAsync)).ToList();
-            int max = Math.Max(videoCards.Count, shaderCards.Count);
+            // Interleave so every source is visible near the top of the grid.
+            int max = lists.Count == 0 ? 0 : lists.Max(l => l.Count);
             for (int i = 0; i < max; i++)
-            {
-                if (i < videoCards.Count) AddCard(videoCards[i]);
-                if (i < shaderCards.Count) AddCard(shaderCards[i]);
-            }
+                foreach (var list in lists)
+                    if (i < list.Count) AddCard(list[i]);
             foreach (var card in shaderCards) _ = LoadShaderDetailsAsync(card, ct);
 
-            if (errors.Count > 0) Context.Notify("Search problem", errors[0], NoticeLevel.Warning);
+            if (errors.Count > 0 && Results.Count > 0) Context.Notify("Some sources didn't answer", errors[0], NoticeLevel.Warning);
             if (Results.Count == 0)
-                EmptyMessage = errors.Count > 0 ? errors[0] : string.IsNullOrEmpty(q) ? "Nothing to show yet." : $"No results for “{q}”. Try another word.";
+                EmptyMessage = errors.Count > 0 ? errors[0] : query.Text.Length == 0 ? "Nothing to show yet." : $"No results for “{query.Text}”. Try another word.";
         }
         catch (OperationCanceledException) { }
         finally
@@ -205,6 +266,9 @@ public sealed partial class DiscoverViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(HasMore));
         }
     }
+
+    private static string? FitLabel(WallpaperItem item, SourceQuery q)
+        => item.Kind is WallpaperKind.Image or WallpaperKind.Video ? Fit.Label(Fit.Rate(item.Width, item.Height, q.CanvasWidth, q.CanvasHeight)) : null;
 
     private static async Task<T?> Catch<T>(Func<Task<T>> work, List<string> errors) where T : class
     {
@@ -241,6 +305,7 @@ public sealed partial class DiscoverViewModel : ObservableObject, IDisposable
 
     private void AddCard(CardViewModel card)
     {
+        if (!_shown.Add(card.Item.Id)) return; // Featured picks also turn up in the curated source feeds
         card.IsActive = Context.IsShownAnywhere(card.Item.Id);
         Results.Add(card);
         _ = LoadThumbnailAsync(card, _searchCts?.Token ?? CancellationToken.None);

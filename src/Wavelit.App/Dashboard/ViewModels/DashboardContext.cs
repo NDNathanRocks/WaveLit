@@ -39,7 +39,11 @@ public sealed partial class DashboardContext : ObservableObject, IDisposable
         _noticeTimer.Tick += (_, _) => { _noticeTimer.Stop(); IsNoticeOpen = false; };
         RebuildTargets();
         wallpapers.Changed += OnWallpapersChanged;
+        wallpapers.Error += OnWallpaperError;
     }
+
+    private void OnWallpaperError(object? sender, string message)
+        => _dispatcher.BeginInvoke(() => Notify("Wallpaper problem", message, NoticeLevel.Error));
 
     public ThumbnailLoader Thumbnails { get; }
     public LibraryActions Actions { get; }
@@ -105,6 +109,10 @@ public sealed partial class DashboardContext : ObservableObject, IDisposable
         {
             Notify("Couldn't set wallpaper", ex.Message, NoticeLevel.Error);
         }
+        catch (Wavelit.Core.Storage.MediaTooLargeException)
+        {
+            Notify("Couldn't set wallpaper", "This video is too large for a wallpaper (over 700 MB). Pick a shorter clip.", NoticeLevel.Warning);
+        }
         catch (Exception ex) when (ex is HttpRequestException or System.IO.IOException or InvalidOperationException or TaskCanceledException)
         {
             Notify("Couldn't set wallpaper", "The download failed. Check your connection and try again.", NoticeLevel.Error);
@@ -121,6 +129,7 @@ public sealed partial class DashboardContext : ObservableObject, IDisposable
     public void Dispose()
     {
         _wallpapers.Changed -= OnWallpapersChanged;
+        _wallpapers.Error -= OnWallpaperError;
         _noticeTimer.Stop();
     }
 }

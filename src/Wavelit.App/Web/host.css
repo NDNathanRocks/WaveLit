@@ -23,6 +23,15 @@ html, body {
   object-fit: cover;
 }
 
-video.layer {
-  transition: opacity linear;
+.overlay {
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Video and images: positioned on the wallpaper canvas by host.js (placeMedia). */
+.media {
+  position: absolute;
+  display: block;
+  object-fit: fill;
+  opacity: 0;
 }

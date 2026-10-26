@@ -1,0 +1,67 @@
+{
+ "result_count": 240,
+ "page_count": 120,
+ "page_size": 2,
+ "page": 1,
+ "results": [
+  {
+   "id": "40f035d3-7b32-42cf-9a12-8e4fa6cad05d",
+   "title": "MOUNTAIN LAKES HISTORIC DISTRICT, MORRIS COUNTY",
+   "indexed_on": "2020-05-11T22:32:23.360336Z",
+   "foreign_landing_url": "https://commons.wikimedia.org/w/index.php?curid=33320148",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/7/77/MOUNTAIN_LAKES_HISTORIC_DISTRICT%2C_MORRIS_COUNTY.jpg",
+   "creator": "Jerrye & Roy Klotz, MD",
+   "creator_url": "https://commons.wikimedia.org/wiki/User:KLOTZ",
+   "license": "by-sa",
+   "license_version": "3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+   "provider": "wikimedia",
+   "source": "wikimedia",
+   "category": null,
+   "filesize": 769913,
+   "filetype": "jpg",
+   "tags": [],
+   "attribution": "\"MOUNTAIN LAKES HISTORIC DISTRICT, MORRIS COUNTY\" by Jerrye & Roy Klotz, MD is licensed under CC BY-SA 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/3.0/.",
+   "fields_matched": [
+    "title"
+   ],
+   "mature": false,
+   "height": 1848,
+   "width": 2784,
+   "thumbnail": "https://api.openverse.org/v1/images/40f035d3-7b32-42cf-9a12-8e4fa6cad05d/thumb/",
+   "detail_url": "https://api.openverse.org/v1/images/40f035d3-7b32-42cf-9a12-8e4fa6cad05d/",
+   "related_url": "https://api.openverse.org/v1/images/40f035d3-7b32-42cf-9a12-8e4fa6cad05d/related/",
+   "unstable__sensitivity": []
+  },
+  {
+   "id": "e52f9f04-272d-4f20-9f6d-445ddc58f3ee",
+   "title": "Blue Mountain Lake in New York",
+   "indexed_on": "2020-04-26T02:49:23.746756Z",
+   "foreign_landing_url": "https://commons.wikimedia.org/w/index.php?curid=41617294",
+   "url": "https://upload.wikimedia.org/wikipedia/commons/1/13/Blue_Mountain_Lake_in_New_York.jpg",
+   "creator": "Mwanner at English Wikipedia",
+   "creator_url": "https://en.wikipedia.org/wiki/User:Mwanner",
+   "license": "by-sa",
+   "license_version": "3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+   "provider": "wikimedia",
+   "source": "wikimedia",
+   "category": null,
+   "filesize": 2105375,
+   "filetype": "jpg",
+   "tags": [],
+   "attribution": "\"Blue Mountain Lake in New York\" by Mwanner at English Wikipedia is licensed under CC BY-SA 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/3.0/.",
+   "fields_matched": [
+    "description",
+    "title"
+   ],
+   "mature": false,
+   "height": 2448,
+   "width": 3264,
+   "thumbnail": "https://api.openverse.org/v1/images/e52f9f04-272d-4f20-9f6d-445ddc58f3ee/thumb/",
+   "detail_url": "https://api.openverse.org/v1/images/e52f9f04-272d-4f20-9f6d-445ddc58f3ee/",
+   "related_url": "https://api.openverse.org/v1/images/e52f9f04-272d-4f20-9f6d-445ddc58f3ee/related/",
+   "unstable__sensitivity": []
+  }
+ ]
+}

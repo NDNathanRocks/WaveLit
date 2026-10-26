@@ -8,6 +8,7 @@
     <local:BoolToVisibilityConverter x:Key="BoolToVisibility" />
     <local:NotEmptyToVisibilityConverter x:Key="NotEmptyToVisibility" />
     <local:NoticeSeverityConverter x:Key="NoticeSeverity" />
+    <local:InverseBoolConverter x:Key="InverseBool" />
 
     <Style x:Key="PageTitle" TargetType="TextBlock">
         <Setter Property="FontSize" Value="28" />
@@ -80,11 +81,63 @@
         </Setter>
     </Style>
 
+    <!-- Mood chips: a single-select row of pills (Discover's curated home). -->
+    <Style x:Key="ChipItemStyle" TargetType="ListBoxItem">
+        <Setter Property="AutomationProperties.Name" Value="{Binding Label}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Pill" Margin="0,0,8,0" Padding="14,5" CornerRadius="14" BorderThickness="1"
+                            Background="{DynamicResource ControlFillColorDefaultBrush}"
+                            BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
+                        <TextBlock x:Name="Text" Text="{Binding Label}" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Pill" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Pill" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                            <Setter TargetName="Pill" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                            <Setter TargetName="Text" Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Pill" Property="BorderBrush" Value="{DynamicResource FocusStrokeColorOuterBrush}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ChipRow" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource ChipItemStyle}" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="ItemsPanel">
+            <Setter.Value>
+                <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </Setter.Value>
+        </Setter>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <ItemsPresenter />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <DataTemplate x:Key="WallpaperCard" DataType="{x:Type vm:CardViewModel}">
         <Border x:Name="Root" Width="280" Height="214" CornerRadius="10"
                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
-                ToolTip="{Binding Title}">
+                ToolTip="{Binding Attribution}">
             <Grid>
                 <Grid.Clip>
                     <RectangleGeometry Rect="0,0,278,212" RadiusX="9" RadiusY="9" />
@@ -115,6 +168,16 @@
                     <StackPanel Orientation="Horizontal">
                         <ui:SymbolIcon Symbol="Checkmark12" FontSize="11" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
                         <TextBlock Margin="4,0,0,0" Text="IN USE" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                    </StackPanel>
+                </Border>
+
+                <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10" Padding="7,3"
+                        CornerRadius="4" Background="#B3000000"
+                        Visibility="{Binding FitLabel, Converter={StaticResource NotEmptyToVisibility}}"
+                        ToolTip="How well this fills your screens">
+                    <StackPanel Orientation="Horizontal">
+                        <ui:SymbolIcon Symbol="Desktop16" FontSize="11" Foreground="White" />
+                        <TextBlock Margin="4,0,0,0" Text="{Binding FitLabel}" FontSize="10" FontWeight="SemiBold" Foreground="White" />
                     </StackPanel>
                 </Border>
 
@@ -158,5 +221,51 @@
                 <Setter TargetName="Overlay" Property="IsEnabled" Value="False" />
             </DataTrigger>
         </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- Local AI pack card: shared by the Create page, Settings and first-run setup. -->
+    <DataTemplate DataType="{x:Type vm:LocalAiViewModel}">
+        <Border Padding="16" CornerRadius="8"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+            <StackPanel>
+                <DockPanel>
+                    <ui:SymbolIcon DockPanel.Dock="Left" Symbol="Desktop24" FontSize="24" Margin="0,0,12,0" VerticalAlignment="Top" />
+                    <StackPanel>
+                        <TextBlock Text="Local AI: make wallpapers on this PC" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,0"
+                                   Text="Private, unlimited and free. Nothing leaves your PC. Optional: only downloaded if you want it." />
+                    </StackPanel>
+                </DockPanel>
+                <StackPanel Margin="36,10,0,0">
+                    <TextBlock Text="{Binding GpuText}" TextWrapping="Wrap" />
+                    <TextBlock Margin="0,4,0,0" Style="{StaticResource Caption}">
+                        <Run Text="{Binding SizeText, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding DiskText, Mode=OneWay}" />
+                    </TextBlock>
+                    <ProgressBar Margin="0,10,0,0" Height="4" Maximum="100" Value="{Binding ProgressPercent, Mode=OneWay}"
+                                 Visibility="{Binding ShowProgress, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Margin="0,6,0,0" Text="{Binding StatusText}" TextWrapping="Wrap" Style="{StaticResource Caption}" />
+                    <CheckBox Margin="0,10,0,0" IsChecked="{Binding AcceptedLicense}"
+                              Visibility="{Binding CanStart, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock TextWrapping="Wrap">
+                            I agree to the model's licence (SDXL-Lightning,
+                            <Hyperlink Command="{Binding OpenLicenseCommand}">CreativeML Open RAIL++-M</Hyperlink>),
+                            including its rules on harmful use.
+                        </TextBlock>
+                    </CheckBox>
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <ui:Button Appearance="Primary" Content="{Binding StartLabel}" Icon="{ui:SymbolIcon ArrowDownload24}"
+                                   Command="{Binding StartCommand}" IsEnabled="{Binding AcceptedLicense}"
+                                   Visibility="{Binding CanStart, Converter={StaticResource BoolToVisibility}}" />
+                        <ui:Button Content="Pause" Icon="{ui:SymbolIcon Pause24}" Command="{Binding PauseCommand}"
+                                   Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVisibility}}" />
+                        <ui:Button Content="Remove local AI" Icon="{ui:SymbolIcon Delete24}" Command="{Binding RemoveCommand}" Margin="8,0,0,0"
+                                   Visibility="{Binding IsInstalled, Converter={StaticResource BoolToVisibility}}" />
+                        <TextBlock Text="{Binding SpaceUsedText}" Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                   Visibility="{Binding IsInstalled, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
     </DataTemplate>
 </ResourceDictionary>

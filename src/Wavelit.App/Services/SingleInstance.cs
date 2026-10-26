@@ -11,6 +11,8 @@ internal sealed class SingleInstance : IDisposable
 {
     public const string ActivateCommand = "activate";
     public const string QuitCommand = "quit";
+    public const string SnapshotCommand = "snapshot";
+    public const string FrameStatsCommand = "frame-stats";
     private readonly string _pipeName = $"Wavelit.{Environment.UserName}.{Environment.UserDomainName}";
     private readonly Mutex _mutex;
     private readonly CancellationTokenSource _cts = new();
@@ -36,7 +38,7 @@ internal sealed class SingleInstance : IDisposable
                     await server.WaitForConnectionAsync(_cts.Token);
                     using var reader = new StreamReader(server);
                     var line = await reader.ReadLineAsync(_cts.Token).AsTask().WaitAsync(TimeSpan.FromSeconds(2), _cts.Token);
-                    if (line is ActivateCommand or QuitCommand) onCommand(line);
+                    if (line is ActivateCommand or QuitCommand or SnapshotCommand or FrameStatsCommand) onCommand(line);
                 }
                 catch (OperationCanceledException) { return; }
                 catch (Exception ex) when (ex is IOException or TimeoutException) { }

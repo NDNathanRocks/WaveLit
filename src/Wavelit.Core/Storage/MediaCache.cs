@@ -5,13 +5,14 @@ using Microsoft.Extensions.Logging;
 namespace Wavelit.Core.Storage;
 
 /// <summary>
-/// Content cache for downloaded videos with a size cap and least-recently-used eviction.
+/// Content cache for downloaded videos and images with a size cap and least-recently-used eviction.
 /// File names are derived from a hash of the source URL, so server-provided names never touch the file system.
 /// </summary>
 public sealed class MediaCache(AppPaths paths, IHttpClientFactory httpFactory, ILogger<MediaCache> logger)
 {
     public const string DownloadClient = "downloads";
-    private const long MaxFileBytes = 2L * 1024 * 1024 * 1024;
+    /// <summary>A wallpaper never needs more; a bigger file is almost always a long film picked by mistake.</summary>
+    private const long MaxFileBytes = 700L * 1024 * 1024;
     private readonly SemaphoreSlim _evictGate = new(1, 1);
 
     public string Directory => paths.MediaCache;
@@ -55,11 +56,12 @@ public sealed class MediaCache(AppPaths paths, IHttpClientFactory httpFactory, I
 
             string? mediaType = response.Content.Headers.ContentType?.MediaType;
             if (mediaType is not null && !mediaType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
+                && !mediaType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
                 && mediaType != "application/octet-stream")
                 throw new InvalidOperationException($"Unexpected content type '{mediaType}'.");
 
             long? total = response.Content.Headers.ContentLength;
-            if (total > MaxFileBytes) throw new InvalidOperationException("File is too large.");
+            if (total > MaxFileBytes) throw new MediaTooLargeException();
 
             await using (var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false))
             await using (var dest = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, useAsync: true))
@@ -71,7 +73,7 @@ public sealed class MediaCache(AppPaths paths, IHttpClientFactory httpFactory, I
                 while ((n = await source.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
                 {
                     read += n;
-                    if (read > MaxFileBytes) throw new InvalidOperationException("File is too large.");
+                    if (read > MaxFileBytes) throw new MediaTooLargeException();
                     await dest.WriteAsync(buffer.AsMemory(0, n), ct).ConfigureAwait(false);
                     if (total > 0)
                     {
@@ -140,3 +142,6 @@ public sealed class MediaCache(AppPaths paths, IHttpClientFactory httpFactory, I
         try { if (File.Exists(path)) File.Delete(path); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 }
+
+/// <summary>A download went over the cache's per-file limit (almost always a long film picked by mistake).</summary>
+public sealed class MediaTooLargeException() : InvalidOperationException("File is too large.");

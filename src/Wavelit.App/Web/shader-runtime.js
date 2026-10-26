@@ -2,6 +2,11 @@
 
 // Shadertoy-compatible WebGL2 runtime: Common + Buffer A–D (ping-pong float targets) + Image,
 // texture and keyboard inputs, FPS cap and render-scale for low GPU cost.
+// Canvas-aware: in Extend mode the image pass sees the whole multi-display canvas as iResolution and
+// fragCoord, while this window only draws its slice. Wavelit extras (ignored by Shadertoy code):
+//   iFocus    xy = where the subject belongs (primary display centre), z = that display's short side
+//   iViewport this window's slice of the canvas (x, y, width, height), all in fragCoord pixels
+//   iPointer, iClick, iTrail  the cursor over the desktop (see pointer.js); iMouse follows Shadertoy
 // Shader source arrives as data (web message) and is only ever passed to gl.shaderSource.
 (function () {
   const VERTEX = `#version 300 es
@@ -26,6 +31,14 @@ uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
 uniform sampler2D iChannel2;
 uniform sampler2D iChannel3;
+uniform vec3 iFocus;
+uniform vec4 iViewport;
+uniform vec2 wavelitOffset;
+uniform vec4 iPointer;
+uniform vec4 iClick;
+uniform vec4 iTrail[16];
+uniform vec4 wavelitTint;
+uniform vec4 wavelitStyle;
 out vec4 wavelitFragColor;
 `;
 
@@ -39,18 +52,31 @@ void main() {
   const FOOTER_IMAGE = `
 void main() {
   vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
-  mainImage(color, gl_FragCoord.xy);
+  mainImage(color, gl_FragCoord.xy + wavelitOffset);
   wavelitFragColor = vec4(color.rgb, 1.0);
+}`;
+
+  // Transparent overlays (image effects) keep their alpha; output is premultiplied.
+  const FOOTER_OVERLAY = `
+void main() {
+  vec4 color = vec4(0.0);
+  mainImage(color, gl_FragCoord.xy + wavelitOffset);
+  wavelitFragColor = clamp(color, 0.0, 1.0);
 }`;
 
   const HEADER_LINES = HEADER.split('\n').length - 1;
 
+  // Every live runtime, for the --frame-stats diagnostic.
+  const live = new Set();
+
   class ShaderRuntime {
-    constructor(canvas, program, getOptions, getPixelSize) {
+    constructor(canvas, program, getOptions, getPixelSize, getView, getTime) {
       this.canvas = canvas;
       this.program = program;
       this.getOptions = getOptions;
       this.getPixelSize = getPixelSize;
+      this.getView = getView;
+      this.getTime = getTime;
       this.raf = 0;
       this.running = false;
       this.lastFrame = 0;
@@ -59,10 +85,16 @@ void main() {
       this.fpsEstimate = 30;
       this.disposed = false;
       this.onFrame = (t) => this.frame(t);
+      this.vsync = 0;         // measured display refresh interval (ms)
+      this.lastTick = 0;
+      this.tick = 0;
+      this.rendered = [];     // timestamps of recent rendered frames (frame stats)
+      live.add(this);
 
+      const overlay = !!program.overlay;
       const gl = canvas.getContext('webgl2', {
-        alpha: false, antialias: false, depth: false, stencil: false,
-        premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'default',
+        alpha: overlay, antialias: false, depth: false, stencil: false,
+        premultipliedAlpha: overlay, preserveDrawingBuffer: false, powerPreference: 'default',
       });
       if (!gl) throw new Error('WebGL 2 is not available on this PC (check your graphics drivers).');
       this.gl = gl;
@@ -101,7 +133,8 @@ void main() {
       this.passes = passes
         .filter(p => p.type === 'buffer' || p.type === 'image')
         .map(p => {
-          const source = HEADER + common + '\n' + p.code + (p.type === 'image' ? FOOTER_IMAGE : FOOTER_BUFFER);
+          const footer = p.type !== 'image' ? FOOTER_BUFFER : this.program.overlay ? FOOTER_OVERLAY : FOOTER_IMAGE;
+          const source = HEADER + common + '\n' + p.code + footer;
           const fs = this.compile(gl.FRAGMENT_SHADER, source, p.type === 'image' ? 'Image' : 'Buffer',
             HEADER_LINES + (common ? common.split('\n').length : 0));
           const prog = gl.createProgram();
@@ -126,12 +159,16 @@ void main() {
               frame: u('iFrame'), chTime: u('iChannelTime'), chRes: u('iChannelResolution'),
               mouse: u('iMouse'), date: u('iDate'), sampleRate: u('iSampleRate'),
               ch: [u('iChannel0'), u('iChannel1'), u('iChannel2'), u('iChannel3')],
+              focus: u('iFocus'), viewport: u('iViewport'), offset: u('wavelitOffset'),
+              pointer: u('iPointer'), click: u('iClick'), trail: u('iTrail'), tint: u('wavelitTint'), style: u('wavelitStyle'),
             },
+            usesPointer: /\b(iMouse|iPointer|iClick|iTrail)\b/.test(p.code + common),
           };
         });
       gl.deleteShader(vs);
 
       if (!this.passes.some(p => p.type === 'image')) throw new Error('Shader has no image pass.');
+      this.usesPointer = this.passes.some(p => p.usesPointer);
 
       for (const pass of this.passes) {
         for (const input of pass.inputs) {
@@ -268,6 +305,7 @@ void main() {
       if (this.running || this.disposed) return;
       this.running = true;
       this.lastFrame = 0;
+      this.lastTick = 0;
       this.raf = requestAnimationFrame(this.onFrame);
     }
 
@@ -281,21 +319,53 @@ void main() {
     frame(now) {
       if (!this.running) return;
       this.raf = requestAnimationFrame(this.onFrame);
-      const fps = Math.max(10, this.getOptions().fps || 30);
-      const interval = 1000 / fps;
-      if (this.lastFrame && now - this.lastFrame < interval - 2) return;
-      const dt = this.lastFrame ? Math.min((now - this.lastFrame) / 1000, 0.1) : 1 / fps;
+      const opts = this.getOptions();
+      // A cursor-reactive shader follows the cursor at 60 fps while it's on the desktop, then drops back.
+      const lively = this.usesPointer && window.WavelitPointer && window.WavelitPointer.isActive();
+      const fps = Math.max(10, lively ? Math.max(60, opts.fps || 30) : opts.fps || 30);
+      // Even pacing: render on every N-th display refresh, N = refresh / target. A time threshold would
+      // land on an uneven mix of refreshes (at 143 Hz, "60 fps" became ~48 fps with judder).
+      if (this.lastTick) {
+        const d = now - this.lastTick;
+        if (d > 2 && (!this.vsync || d < this.vsync * 1.6)) this.vsync = this.vsync ? this.vsync * 0.95 + d * 0.05 : d;
+      }
+      this.lastTick = now;
+      const divisor = Math.max(1, Math.round(1000 / fps / (this.vsync || 1000 / 60)));
+      if (++this.tick % divisor !== 0) return;
+      this.rendered.push(now);
+      if (this.rendered.length > 600) this.rendered.splice(0, this.rendered.length - 600);
+      // iTime follows the page's wallpaper timeline (shared between Extend slices).
+      const time = this.getTime();
+      const dt = this.lastFrame ? Math.min(Math.max(time - this.time, 0), 0.1) : 1 / fps;
       this.lastFrame = now;
-      this.time += dt;
+      this.time = time;
       this.fpsEstimate = this.fpsEstimate * 0.9 + (1 / Math.max(dt, 1e-3)) * 0.1;
       if (!this.gl.isContextLost()) this.render(dt);
     }
 
+    // Maps the canvas (physical px, top-left origin) to fragCoord space (render-scaled, bottom-left origin).
+    canvasSpace() {
+      const v = this.getView();
+      const k = this.canvas.width / Math.max(1, v.viewport.width);
+      const ch = v.canvas.height;
+      return {
+        k,
+        canvasHeight: ch,
+        res: [v.canvas.width * k, ch * k],
+        offset: [v.viewport.x * k, (ch - v.viewport.y - v.viewport.height) * k],
+        focus: [v.focus.x * k, (ch - v.focus.y) * k, v.focus.size * k],
+      };
+    }
+
     render(dt) {
       const gl = this.gl;
+      const space = this.canvasSpace();
       const d = new Date();
       const date = [d.getFullYear(), d.getMonth(), d.getDate(),
         d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000];
+      const ptr = this.usesPointer && window.WavelitPointer ? window.WavelitPointer.sample(space.k, space.canvasHeight) : null;
+      const tint = this.program.tint ? this.program.tint() : null;
+      const style = this.program.style ? this.program.style() : null;
 
       for (const pass of this.passes) {
         const target = pass.type === 'buffer' ? this.targets.get(String(pass.outputId)) : null;
@@ -330,14 +400,35 @@ void main() {
         }
 
         const L = pass.loc;
-        if (L.res) gl.uniform3f(L.res, w, h, 1);
+        // Buffers stay window-sized (only single-window shaders use them); the image pass sees the canvas.
+        const image = !target;
+        const res = image ? space.res : [w, h];
+        const offset = image ? space.offset : [0, 0];
+        if (L.res) gl.uniform3f(L.res, res[0], res[1], 1);
+        if (L.offset) gl.uniform2f(L.offset, offset[0], offset[1]);
+        if (L.viewport) gl.uniform4f(L.viewport, offset[0], offset[1], w, h);
+        if (L.focus) gl.uniform3f(L.focus, space.focus[0], space.focus[1], space.focus[2]);
         if (L.time) gl.uniform1f(L.time, this.time);
         if (L.delta) gl.uniform1f(L.delta, dt);
         if (L.rate) gl.uniform1f(L.rate, this.fpsEstimate);
         if (L.frame) gl.uniform1i(L.frame, this.frameIndex);
         if (L.chTime) gl.uniform1fv(L.chTime, [this.time, this.time, this.time, this.time]);
         if (L.chRes) gl.uniform3fv(L.chRes, chRes);
-        if (L.mouse) gl.uniform4f(L.mouse, 0, 0, 0, 0);
+        // Buffers work in window pixels, the image pass in canvas pixels; the cursor follows suit.
+        const shift = image ? [0, 0] : offset;
+        if (L.mouse) {
+          if (ptr) gl.uniform4f(L.mouse, ptr.mouse[0] - shift[0], ptr.mouse[1] - shift[1],
+            ptr.mouse[2] - Math.sign(ptr.mouse[2]) * shift[0], ptr.mouse[3] - Math.sign(ptr.mouse[3]) * shift[1]);
+          else gl.uniform4f(L.mouse, 0, 0, 0, 0);
+        }
+        if (L.pointer) {
+          if (ptr) gl.uniform4f(L.pointer, ptr.pointer[0] - shift[0], ptr.pointer[1] - shift[1], ptr.pointer[2], ptr.pointer[3]);
+          else gl.uniform4f(L.pointer, 0, 0, 0, 0);
+        }
+        if (L.click) gl.uniform4fv(L.click, ptr ? ptr.click : [0, 0, 1e4, 0]);
+        if (L.trail && ptr) gl.uniform4fv(L.trail, ptr.trail);
+        if (L.tint) gl.uniform4fv(L.tint, tint || [1, 1, 1, 1]);
+        if (L.style) gl.uniform4fv(L.style, style || [1, 1, 1, 1]);
         if (L.date) gl.uniform4fv(L.date, date);
         if (L.sampleRate) gl.uniform1f(L.sampleRate, 44100);
         for (let ch = 0; ch < 4; ch++) if (L.ch[ch]) gl.uniform1i(L.ch[ch], ch);
@@ -353,8 +444,29 @@ void main() {
       this.frameIndex++;
     }
 
+    /** Frame pacing over the last ~600 rendered frames: rate, mean interval and p95 jitter (ms). */
+    frameStats() {
+      const t = this.rendered;
+      if (t.length < 20) return null;
+      const iv = [];
+      for (let i = 1; i < t.length; i++) iv.push(t[i] - t[i - 1]);
+      const sorted = iv.slice().sort((a, b) => a - b);
+      const median = sorted[sorted.length >> 1];
+      const dev = iv.map(v => Math.abs(v - median)).sort((a, b) => a - b);
+      const mean = iv.reduce((a, b) => a + b, 0) / iv.length;
+      return {
+        name: this.program.name || 'shader',
+        fps: Math.round(10000 / mean) / 10,
+        meanMs: Math.round(mean * 100) / 100,
+        p95JitterMs: Math.round(dev[Math.floor(dev.length * 0.95)] * 100) / 100,
+        refreshHz: this.vsync ? Math.round(10000 / this.vsync) / 10 : null,
+        frames: t.length,
+      };
+    }
+
     dispose() {
       this.disposed = true;
+      live.delete(this);
       this.stop();
       const gl = this.gl;
       this.canvas.removeEventListener('webglcontextlost', this.onLost);
@@ -376,4 +488,5 @@ void main() {
   }
 
   window.WavelitShaderRuntime = ShaderRuntime;
+  window.WavelitFrameStats = () => Array.from(live).map(r => r.frameStats()).filter(Boolean);
 })();

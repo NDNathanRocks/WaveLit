@@ -15,12 +15,27 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Wavelit.Core\Wavelit.Core.csproj" />
+    <!-- Built first, then copied into create\ (its own folder keeps its dependencies separate). -->
+    <ProjectReference Include="..\Wavelit.Create\Wavelit.Create.csproj" ReferenceOutputAssembly="false" Private="false" />
   </ItemGroup>
+
+  <Target Name="CopyCreateHelper" AfterTargets="Build">
+    <ItemGroup>
+      <CreateHelperFiles Include="..\Wavelit.Create\bin\$(Configuration)\net10.0-windows\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CreateHelperFiles)" DestinationFiles="@(CreateHelperFiles->'$(OutDir)create\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PublishCreateHelper" AfterTargets="Publish">
+    <MSBuild Projects="..\Wavelit.Create\Wavelit.Create.csproj" Targets="Publish"
+             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);PublishDir=$([System.IO.Path]::GetFullPath('$(PublishDir)'))create\" />
+  </Target>
 
   <ItemGroup>
     <Resource Include="Assets\wavelit.ico" />
     <Resource Include="Assets\wavelit-256.png" />
     <Resource Include="Assets\BuiltIn\*.jpg" />
+    <Resource Include="Assets\Overlays\*.jpg" />
     <Content Include="Web\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

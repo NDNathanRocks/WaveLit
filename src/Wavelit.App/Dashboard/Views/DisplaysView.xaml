@@ -52,11 +52,49 @@
                        Text="Click a display to pick its wallpaper. Arrangement matches Windows display settings." />
 
             <TextBlock Text="Arrangement" Style="{StaticResource SectionHeader}" />
+            <ui:CardControl Icon="{ui:SymbolIcon ArrowMaximize24}" Margin="0,0,0,4" IsEnabled="{Binding HasMultipleDisplays}">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Extend across displays" FontWeight="SemiBold" />
+                        <TextBlock Text="One wallpaper continues across all your screens, lined up with your Windows display arrangement. Recommended." Style="{StaticResource Caption}" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <RadioButton GroupName="Layout" IsChecked="{Binding IsSpan}" AutomationProperties.Name="Extend across displays" />
+            </ui:CardControl>
+            <StackPanel Margin="40,2,0,8" Visibility="{Binding IsSpan, Converter={StaticResource BoolToVisibility}}">
+                <ui:CardControl Icon="{ui:SymbolIcon Ruler24}" Margin="0,0,0,4" IsEnabled="{Binding HasMultipleDisplays}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Match physical screen sizes" FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                       Text="Keeps lines straight across screens of different sizes, using each monitor's real size." />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="{Binding PhysicalSizes}" Margin="0,2,0,0" />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch IsChecked="{Binding MatchPhysicalSize}" AutomationProperties.Name="Match physical screen sizes" />
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon BorderOutside24}" Margin="0,0,0,4" IsEnabled="{Binding HasMultipleDisplays}">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Bezel gap" FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                       Text="Hides a strip of the picture behind the frames between screens, as if it continued behind them." />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <Slider Width="180" Minimum="0" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True"
+                                Value="{Binding BezelGapMm, Delay=150}" AutomationProperties.Name="Bezel gap in millimetres" />
+                        <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Width="48">
+                            <Run Text="{Binding BezelGapMm, Mode=OneWay}" /><Run Text=" mm" />
+                        </TextBlock>
+                    </StackPanel>
+                </ui:CardControl>
+            </StackPanel>
             <ui:CardControl Icon="{ui:SymbolIcon Copy24}" Margin="0,0,0,4">
                 <ui:CardControl.Header>
                     <StackPanel>
                         <TextBlock Text="Same on every display" FontWeight="SemiBold" />
-                        <TextBlock Text="Each display shows the same wallpaper at its own resolution." Style="{StaticResource Caption}" />
+                        <TextBlock Text="Every display shows its own full copy of the wallpaper." Style="{StaticResource Caption}" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <RadioButton GroupName="Layout" IsChecked="{Binding IsDuplicate}" AutomationProperties.Name="Same on every display" />
@@ -70,15 +108,66 @@
                 </ui:CardControl.Header>
                 <RadioButton GroupName="Layout" IsChecked="{Binding IsPerDisplay}" AutomationProperties.Name="Different on each display" />
             </ui:CardControl>
-            <ui:CardControl Icon="{ui:SymbolIcon ArrowMaximize24}" Margin="0,0,0,4" IsEnabled="{Binding HasMultipleDisplays}">
-                <ui:CardControl.Header>
-                    <StackPanel>
-                        <TextBlock Text="Span across all displays" FontWeight="SemiBold" />
-                        <TextBlock Text="One wallpaper stretched over your whole desk as a single canvas." Style="{StaticResource Caption}" />
-                    </StackPanel>
-                </ui:CardControl.Header>
-                <RadioButton GroupName="Layout" IsChecked="{Binding IsSpan}" AutomationProperties.Name="Span across all displays" />
-            </ui:CardControl>
+
+            <TextBlock Text="Framing" Style="{StaticResource SectionHeader}" />
+            <Border Padding="16" CornerRadius="8"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <StackPanel>
+                    <Grid x:Name="FramingMap" Width="640" Height="240" HorizontalAlignment="Center" ClipToBounds="True"
+                          Background="#0B0B12" Cursor="SizeAll" Focusable="True"
+                          Visibility="{Binding Framing.IsAvailable, Converter={StaticResource BoolToVisibility}}"
+                          AutomationProperties.Name="Framing preview. Drag to move the wallpaper, scroll or use plus and minus to zoom, arrow keys to nudge."
+                          MouseLeftButtonDown="OnFramingDown" MouseMove="OnFramingMove" MouseLeftButtonUp="OnFramingUp"
+                          LostMouseCapture="OnFramingLostCapture" MouseWheel="OnFramingWheel" KeyDown="OnFramingKey">
+                        <Canvas IsHitTestVisible="False">
+                            <Border Canvas.Left="{Binding Framing.ImageRect.Left}" Canvas.Top="{Binding Framing.ImageRect.Top}"
+                                    Width="{Binding Framing.ImageRect.Width}" Height="{Binding Framing.ImageRect.Height}">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#3A2B7A" Offset="0" />
+                                        <GradientStop Color="#1C5D86" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <Image Source="{Binding Framing.Image}" Stretch="Fill" />
+                            </Border>
+                            <Path Data="{Binding Framing.Shade}" Fill="#B8000000" />
+                            <ItemsControl ItemsSource="{Binding Framing.Screens}" Width="640" Height="240">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                                        <Setter Property="Canvas.Top" Value="{Binding Top}" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:MapRect}">
+                                        <Border Width="{Binding Width}" Height="{Binding Height}" BorderBrush="#E6FFFFFF" BorderThickness="1.5" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Canvas>
+                    </Grid>
+                    <DockPanel Margin="0,10,0,0" LastChildFill="True">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,12,0"
+                                        Visibility="{Binding Framing.IsImage, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Motion" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox Width="160" ItemsSource="{Binding Framing.Effects}" DisplayMemberPath="Label"
+                                          SelectedItem="{Binding Framing.SelectedEffect}"
+                                          AutomationProperties.Name="Motion effect for this image" />
+                            </StackPanel>
+                        <ui:Button Content="Reset framing" Icon="{ui:SymbolIcon ArrowReset24}"
+                                   Command="{Binding Framing.ResetCommand}" IsEnabled="{Binding Framing.IsCustom}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding Framing.Hint}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
 
             <TextBlock Text="Playback" Style="{StaticResource SectionHeader}" />
             <ui:CardControl Icon="{ui:SymbolIcon Pause24}">

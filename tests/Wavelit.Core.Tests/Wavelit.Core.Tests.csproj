@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\src\Wavelit.Core\Wavelit.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Samples\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -29,11 +29,24 @@ public sealed class StorageTests : IDisposable
     }
 
     [Fact]
+    public void Version_1_settings_switch_from_duplicate_to_extend_once()
+    {
+        File.WriteAllText(_paths.SettingsFile, """{ "schemaVersion": 1, "displays": { "layout": "Duplicate", "sharedItemId": "x" } }""");
+        var store = new SettingsStore(_paths);
+        Assert.Equal(DisplayLayout.Span, store.Current.Displays.Layout);
+        Assert.Equal("x", store.Current.Displays.SharedItemId);
+
+        // A later choice of Duplicate is respected.
+        store.Update(s => s with { Displays = s.Displays with { Layout = DisplayLayout.Duplicate } });
+        Assert.Equal(DisplayLayout.Duplicate, new SettingsStore(_paths).Current.Displays.Layout);
+    }
+
+    [Fact]
     public void Corrupt_settings_fall_back_to_defaults()
     {
         File.WriteAllText(_paths.SettingsFile, "{ not json");
         var store = new SettingsStore(_paths);
-        Assert.Equal(30, store.Current.ShaderFpsCap);
+        Assert.Equal(60, store.Current.ShaderFpsCap); // Pristine motion is the default
         Assert.True(File.Exists(_paths.SettingsFile + ".bad"));
     }
 

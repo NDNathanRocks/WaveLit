@@ -1,13 +1,17 @@
 # Wavelit
 
-**Live wallpapers for Windows 10 and 11.** Videos, real-time GPU shaders and web pages behind your desktop icons, on every monitor. Wavelit stays out of your way: it pauses automatically when a game or fullscreen app is running.
+**Live wallpapers for Windows 10 and 11.** Videos, images, real-time GPU shaders and web pages behind your desktop icons, on every monitor. Wavelit stays out of your way: it pauses automatically when a game or fullscreen app is running.
 
-- **Seamless video loops.** Crossfade looping hides the jump at the end of clips that weren't made to loop.
-- **Live shaders.** Six original shaders are included, and you can search Shadertoy with a free key.
-- **Multi-monitor.** Show the same wallpaper on every screen, a different one per screen, or span one across all of them. Mixed resolutions, portrait screens and negative coordinates all work.
-- **Zero cost while gaming.** Fullscreen and maximized windows, the lock screen, display sleep, battery saver and Remote Desktop all pause or suspend rendering. Renderer CPU drops to 0%.
-- **Search millions of free videos** from Pexels (bring your own free API key).
-- **Private.** No account, no telemetry, no ads. API keys are encrypted on your PC.
+- **Extend across monitors, properly.** One picture continues across all your screens, lined up with your Windows display arrangement: any size, resolution or orientation. Each screen draws its own part on a shared clock, so videos stay in sync. The subject goes on your main screen, never on a bezel.
+- **Bezel and physical-size compensation.** Wavelit reads each monitor's real size, so a horizon stays straight across a 24" and a 27" screen, and can hide a strip of picture behind the frames.
+- **Framing editor.** Drag and zoom a video or image behind a map of your monitors; the desktop follows live.
+- **Create wallpapers from a prompt.** Shaped exactly like your screens, then AI-sharpened to full resolution. Generate on your own GPU (private, unlimited, optional download), with your free Cloudflare account, or with a no-account quick try.
+- **Living stills.** Turn any image into a live wallpaper with slow drift, rain, snow, fireflies or floating dust, at a few percent of GPU.
+- **Free sources with no keys.** Wallhaven wallpapers, NASA space videos and Creative Commons images from Openverse. Add a free Pixabay key for 4K stock video. Paste any Shadertoy-style shader.
+- **Follows the sun.** One wallpaper by day, another by night, switched at your local sunrise and sunset (worked out on your PC).
+- **Remembers each monitor setup.** Docked, laptop-only and TV setups each keep their own wallpapers.
+- **Seamless video loops** with crossfade, and **zero cost while gaming**: fullscreen apps, the lock screen, display sleep, battery saver and Remote Desktop pause or suspend rendering.
+- **Private.** No account, no telemetry, no ads. Keys are encrypted on your PC.
 
 ## Install
 
@@ -39,15 +43,18 @@ Command-line switches:
 | `--verbose` | Debug-level logs, including every pause and resume decision. |
 | `--soak` | Write resource usage to `logs/resources.csv` every minute (leak hunting). |
 | `--no-wallpaper` | Dashboard only (UI debugging). |
+| `--snapshot` | Save what every wallpaper window draws, laid out like your monitors, to `logs/snapshot.png`. |
 
 Logs, settings and the cache live in `%LOCALAPPDATA%\Wavelit`.
 
 ## Getting API keys (optional, free)
 
-- **Pexels.** Sign up at [pexels.com/api](https://www.pexels.com/api/) and copy your key into *Settings → Pexels videos*.
-- **Shadertoy.** Sign in, open [shadertoy.com/myapps](https://www.shadertoy.com/myapps), create an app key and paste it into *Settings → Shadertoy*.
+Wavelit works without any key: included shaders, Wallhaven, NASA and Openverse in Discover, the Create page's quick try, local AI, your own videos, images and web pages.
 
-Without keys, Wavelit still works fully with the included shaders, your own videos (MP4/WebM/MOV) and web pages.
+- **Pixabay** (recommended, instant). Sign up at [pixabay.com](https://pixabay.com/accounts/register/); your key is on [pixabay.com/api/docs](https://pixabay.com/api/docs/). Paste it in *Settings → Pixabay videos*.
+- **Cloudflare Workers AI** (for sharper cloud creations). Create a free account, copy your Account ID, and create an API token with the "Workers AI" template. Paste both in *Settings → Cloudflare*.
+- **Pexels**: new keys are paused by Pexels; existing keys still work.
+- **Shadertoy**: needs a Shadertoy account. Alternatively, use *Library → Paste a shader*.
 
 ## How it works
 
@@ -56,8 +63,8 @@ Wavelit places a child window between the desktop wallpaper and the icons. This 
 ## Credits & licenses
 
 - Wavelit is licensed under the **GNU GPL v3** (see [LICENSE](LICENSE)). The "Wavelit" name and logo are not covered by the license.
-- Videos are provided by [Pexels](https://www.pexels.com) under the Pexels License; creators are credited on every card.
-- Shadertoy shaders belong to their authors and are licensed CC BY-NC-SA 3.0 unless the author states otherwise.
+- Third-party components and models: see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+- Media from online sources belongs to its creators and is credited on every card (Wallhaven, NASA, Openverse, Pixabay, Pexels, Shadertoy).
 - Built with [WPF-UI](https://github.com/lepoco/wpfui) (MIT), [H.NotifyIcon](https://github.com/HavenDV/H.NotifyIcon) (MIT), [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) (MIT), [VirtualizingWrapPanel](https://github.com/sbaeumlisberger/VirtualizingWrapPanel) (MIT), [Serilog](https://serilog.net) (Apache-2.0) and Microsoft Edge WebView2.
 
 ## Contributing

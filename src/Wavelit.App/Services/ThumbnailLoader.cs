@@ -24,6 +24,12 @@ public sealed class ThumbnailLoader(IHttpClientFactory httpFactory, AppPaths pat
 
         string captured = WallpaperService.CapturedThumbnailPath(paths, item.Id);
         if (File.Exists(captured)) return await DecodeFileAsync(captured, ct);
+        // Images are their own thumbnail (decoded small).
+        if (item is { Kind: WallpaperKind.Image, FilePath: { } file })
+        {
+            string full = item.IsLocalFile ? file : Path.Combine(paths.MediaCache, Path.GetFileName(file));
+            if (File.Exists(full)) return await DecodeFileAsync(full, ct);
+        }
         if (item.ThumbnailUrl is null || !item.ThumbnailUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) return null;
 
         string cacheFile = Path.Combine(paths.ThumbnailCache, MediaCache.FileNameFor(item.ThumbnailUrl, ".img"));
