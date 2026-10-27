@@ -27,8 +27,7 @@
   </Target>
 
   <Target Name="PublishCreateHelper" AfterTargets="Publish">
-    <MSBuild Projects="..\Wavelit.Create\Wavelit.Create.csproj" Targets="Publish"
-             Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);PublishDir=$([System.IO.Path]::GetFullPath('$(PublishDir)'))create\" />
+    <MSBuild Projects="..\Wavelit.Create\Wavelit.Create.csproj" Targets="Publish" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);PublishDir=$([System.IO.Path]::GetFullPath('$(PublishDir)'))create\" />
   </Target>
 
   <ItemGroup>
@@ -44,6 +43,7 @@
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+    <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="VirtualizingWrapPanel" Version="2.5.4" />

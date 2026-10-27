@@ -21,6 +21,8 @@ public static class WallpaperSources
     public const string Generated = "generated";
     /// <summary>GLSL pasted by the user ("Paste a shader").</summary>
     public const string Pasted = "pasted";
+    /// <summary>A live wallpaper written in the Studio (AI-written GLSL, checked before it was saved).</summary>
+    public const string GeneratedShader = "generated-shader";
 }
 
 /// <summary>
@@ -68,6 +70,16 @@ public sealed record WallpaperItem
     public string? Prompt { get; init; }
 
     public DateTimeOffset AddedAt { get; init; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// Provenance for AI creations (plan §21.6): the model or generator that made it ("claude-opus-5-5",
+    /// "cloudflare:…", "ai-chat", "local-sdxl", "pollinations"). Null for everything else.
+    /// </summary>
+    public string? MadeWith { get; init; }
+
+    /// <summary>Made with AI: labelled "Made with AI" and filterable in the Library.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsAiMade => MadeWith is not null || Source is WallpaperSources.Generated or WallpaperSources.GeneratedShader;
 
     [JsonIgnore] public bool IsBuiltIn => Source == WallpaperSources.BuiltIn;
     /// <summary>The file lives at an absolute path that Wavelit doesn't manage as cache (user files, creations).</summary>

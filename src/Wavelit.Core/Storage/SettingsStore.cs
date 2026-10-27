@@ -24,9 +24,18 @@ public sealed record AppSettings
     public DayNightSchedule DayNight { get; init; } = new();
     /// <summary>The interactive layer over every wallpaper (off by default).</summary>
     public InteractiveSettings Interactive { get; init; } = new();
+    public AudioSettings Audio { get; init; } = new();
+    /// <summary>Desktop page: widgets on the wallpaper and the taskbar (plan §22).</summary>
+    public Wavelit.Core.Desktop.DesktopSettings Desktop { get; init; } = new();
     /// <summary>Overlay styles chosen for single wallpapers (item id → style), overriding <see cref="Interactive"/>.</summary>
     public Dictionary<string, string> OverlayFor { get; init; } = new();
     public PlaybackRules Rules { get; init; } = new();
+    /// <summary>Overlays made in the Studio (id with <see cref="InteractiveSettings.CustomPrefix"/> → overlay).</summary>
+    public Dictionary<string, CustomOverlay> CustomOverlays { get; init; } = new();
+    /// <summary>Slider values chosen for Studio wallpapers (item id → values; plan §21.5).</summary>
+    public Dictionary<string, double[]> ParamsFor { get; init; } = new();
+    /// <summary>The Claude model the Studio uses (see <c>ClaudeShaderAuthor.Models</c>).</summary>
+    public string StudioModel { get; init; } = "claude-opus-5-5";
 
     /// <summary>Motion: 60 = Pristine (default), 30 = Balanced, 15 = Saver. Paced to the display's refresh.</summary>
     public int ShaderFpsCap { get; init; } = 60;
@@ -44,8 +53,13 @@ public sealed record AppSettings
     public AppSettings Normalize()
     {
         var s = Migrate();
+        var custom = (s.CustomOverlays ?? new())
+            .Where(kv => InteractiveSettings.IsCustom(kv.Key) && kv.Value is { Code.Length: > 0 })
+            .ToDictionary(kv => kv.Key, kv => kv.Value);
         return s with
         {
+            CustomOverlays = custom,
+            StudioModel = string.IsNullOrWhiteSpace(s.StudioModel) ? "claude-opus-5-5" : s.StudioModel,
             ShaderFpsCap = Math.Clamp(s.ShaderFpsCap, 10, 144),
             ShaderRenderScale = Math.Clamp(s.ShaderRenderScale, 0.25, 1.0),
             Volume = Math.Clamp(s.Volume, 0, 100),
@@ -56,8 +70,11 @@ public sealed record AppSettings
             Canvas = (s.Canvas ?? new()).Normalize(),
             Setups = s.Setups ?? new(),
             DayNight = s.DayNight ?? new(),
-            Interactive = (s.Interactive ?? new()).Normalize(),
-            OverlayFor = (s.OverlayFor ?? new()).Where(kv => InteractiveSettings.Styles.Contains(kv.Value)).ToDictionary(kv => kv.Key, kv => kv.Value),
+            Interactive = (s.Interactive ?? new()).Normalize(custom.Keys),
+            Audio = (s.Audio ?? new()).Normalize(),
+            Desktop = (s.Desktop ?? new()).Normalize(),
+            ParamsFor = (s.ParamsFor ?? new()).Where(kv => kv.Value is { Length: <= 4 } v && v.All(double.IsFinite)).ToDictionary(kv => kv.Key, kv => kv.Value),
+            OverlayFor = (s.OverlayFor ?? new()).Where(kv => InteractiveSettings.IsKnown(kv.Value, custom.Keys)).ToDictionary(kv => kv.Key, kv => kv.Value),
         };
     }
 
@@ -73,6 +90,12 @@ public sealed record AppSettings
         return s with { SchemaVersion = Math.Max(s.SchemaVersion, CurrentSchema) };
     }
 }
+
+/// <summary>An overlay written in the Studio. Its GLSL runs after the shared overlay helpers (Web/interact.js).</summary>
+/// <param name="Params">Its slider values (null = the defaults it declares).</param>
+/// <param name="Model">The AI that wrote it (provenance; "Made with AI").</param>
+public sealed record CustomOverlay(string Title, string Code, bool UsesPointer, string? ThumbnailPath = null, string? Prompt = null,
+    IReadOnlyList<double>? Params = null, string? Model = null);
 
 /// <summary>Thread-safe settings holder. Every update is persisted immediately (atomic write).</summary>
 public sealed class SettingsStore

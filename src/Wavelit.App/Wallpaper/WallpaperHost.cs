@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
+using Wavelit.Core.Audio;
 using Wavelit.Core.Desktop;
 using Wavelit.Core.Interop;
 using Wavelit.Core.Library;
@@ -55,6 +56,9 @@ internal sealed class WallpaperHost : IDisposable
     private int _loads;
     private int _epoch;
     private bool _shaderUsesPointer;
+    private bool _shaderUsesAudio;
+    private bool _lastAudioSilent = true;
+    private double[]? _sentParams;   // slider values the page has (Studio wallpapers)
     private string? _itemId;   // the item being shown or loaded (per-wallpaper overlay)
     private PointerSample? _lastPointer;
 
@@ -84,10 +88,13 @@ internal sealed class WallpaperHost : IDisposable
     /// Never for web pages (they're third-party content and get no input from Wavelit).
     /// </summary>
     public bool NeedsPointer => !_disposed && LoadedItemId is not null && _kind is not (null or WallpaperKind.Web)
-        && (_shaderUsesPointer || Overlay?.UsesPointer == true);
+        && (_shaderUsesPointer || _options?.OverlayUsesPointer(_itemId) == true);
 
-    /// <summary>The overlay this window shows: the global one, or the wallpaper's own style.</summary>
-    private InteractiveSettings? Overlay => _options?.OverlayOf(_itemId);
+    /// <summary>
+    /// The page listens to the music: an audio shader, or an overlay that reacts to it. Never for web pages.
+    /// </summary>
+    public bool NeedsAudio => !_disposed && LoadedItemId is not null && _kind is not (null or WallpaperKind.Web)
+        && _options?.Audio.Enabled == true && (_shaderUsesAudio || _options.OverlayUsesAudio(_itemId));
 
     /// <summary>Raised when the renderer reports an error or crashes (message is user-facing).</summary>
     public event EventHandler<string>? Failed;
@@ -169,6 +176,7 @@ internal sealed class WallpaperHost : IDisposable
         _applied = null;
         _lastPointer = null;
         _shaderUsesPointer = false;
+        _shaderUsesAudio = false;
         _itemId = wallpaper.Item.Id;
         if (core.IsSuspended) core.Resume(); // the page must run to load, even if it stays hidden
 
@@ -200,8 +208,11 @@ internal sealed class WallpaperHost : IDisposable
                     await EnsureHostPageAsync(cache: true, localFolder: null, ct);
                     _kind = WallpaperKind.Shader;
                     _shaderUsesPointer = sh.Program.Passes.Any(p => PointerUniforms.IsMatch(p.Code));
+                    _shaderUsesAudio = sh.Program.Passes.Any(p => AudioSettings.CodeUsesAudio(p.Code));
                     core.IsMuted = true;
-                    await SendLoadAsync(new { type = "shader", program = sh.Program }, ct);
+                    _sentParams = options.ParamsFor.GetValueOrDefault(sh.Item.Id);
+                    var program = _sentParams is { } chosen ? sh.Program with { Params = chosen } : sh.Program;
+                    await SendLoadAsync(new { type = "shader", program }, ct);
                     break;
 
                 case ResolvedWallpaper.Web w:
@@ -230,6 +241,13 @@ internal sealed class WallpaperHost : IDisposable
         if (core is null) return;
         if (_kind is WallpaperKind.Video or WallpaperKind.Web) core.IsMuted = options.Muted;
         Post(new { type = "options", options = PageOptions(options) });
+        // Studio sliders apply live, without reloading the shader.
+        if (_kind == WallpaperKind.Shader && _itemId is not null && options.ParamsFor.GetValueOrDefault(_itemId) is { } values
+            && (_sentParams is null || !values.SequenceEqual(_sentParams)))
+        {
+            _sentParams = values;
+            Post(new { type = "params", values });
+        }
     }
 
     /// <summary>Asks the page for its frame pacing (logged when it answers; --frame-stats).</summary>
@@ -264,6 +282,25 @@ internal sealed class WallpaperHost : IDisposable
     }
 
     public PointerSample? LastPointer => _lastPointer;
+
+    /// <summary>Sends one music analysis (AudioFeed, ~60 a second while playing; one frame once it goes quiet).</summary>
+    public void SendAudio(AudioFrame f)
+    {
+        if (_kind is null or WallpaperKind.Web || f.Silent && _lastAudioSilent) return;
+        _lastAudioSilent = f.Silent;
+        var bands = new double[f.Bands.Length];
+        for (int i = 0; i < bands.Length; i++) bands[i] = Math.Round(f.Bands[i], 3);
+        Post(new
+        {
+            type = "audio",
+            b = bands,
+            s = new[] { Math.Round(f.Bass, 3), Math.Round(f.Mid, 3), Math.Round(f.Treble, 3), Math.Round(f.Level, 3), Math.Round(f.Centroid, 3) },
+            beat = f.Beat,
+            bpm = f.Bpm,
+            n = f.BeatCount,
+            silent = f.Silent,
+        });
+    }
 
     private static readonly System.Text.RegularExpressions.Regex PointerUniforms =
         new(@"\b(iMouse|iPointer|iClick|iTrail)\b", System.Text.RegularExpressions.RegexOptions.Compiled);
@@ -513,18 +550,45 @@ internal sealed class WallpaperHost : IDisposable
         muted = o.Muted,
         volume = o.Volume,
         smoothLoop = o.SmoothLoop,
-        interactive = OverlayOptions(o.OverlayOf(_itemId)),
+        interactive = OverlayOptions(o.OverlayOf(_itemId), o),
+        audio = new { sensitivity = o.Audio.Sensitivity, reduceFlashing = o.Audio.ReduceFlashing },
+        widgets = new { items = WidgetOptions(o) },
     };
 
-    private static object OverlayOptions(InteractiveSettings i) => new
+    /// <summary>
+    /// The widgets this window draws: those on its monitors, each with its monitor's rectangle relative to this
+    /// window (physical px). Never on web pages (they replace the host page).
+    /// </summary>
+    private List<object> WidgetOptions(RenderOptions o)
+    {
+        var list = new List<object>();
+        if (!o.Desktop.WidgetsOn || _kind == WallpaperKind.Web) return list;
+        foreach (var monitor in Monitors)
+        {
+            var area = new { x = monitor.Bounds.Left - Bounds.Left, y = monitor.Bounds.Top - Bounds.Top, width = monitor.Bounds.Width, height = monitor.Bounds.Height };
+            foreach (var w in o.Desktop.On(monitor, o.MonitorIds))
+                list.Add(new
+                {
+                    id = w.Id, kind = w.Kind, x = w.X, y = w.Y, align = w.Align, font = w.Font, weight = w.Weight, size = w.Size,
+                    color = w.Color, opacity = w.Opacity, spacing = w.Spacing, upper = w.Upper, italic = w.Italic,
+                    effect = w.Effect, format = w.Format, text = w.Text, area,
+                });
+        }
+        return list;
+    }
+
+    private static object OverlayOptions(InteractiveSettings i, RenderOptions o) => new
     {
         style = i.Style,
+        code = o.CustomOf(i)?.Code,
         amount = i.Amount,
         color = i.Color,
         size = i.Size,
         speed = i.Speed,
         response = i.Response,
         opacity = i.Opacity,
+        music = i.Music && o.Audio.Enabled,
+        @params = o.CustomOf(i)?.Params,
     };
 
     private void SendResize() => Post(new { type = "resize", width = Bounds.Width, height = Bounds.Height });
@@ -582,6 +646,9 @@ internal sealed class WallpaperHost : IDisposable
                         && root.TryGetProperty("width", out var mw) && mw.TryGetInt32(out int w) && w is > 0 and <= 32768
                         && root.TryGetProperty("height", out var mh) && mh.TryGetInt32(out int h) && h is > 0 and <= 32768)
                         MediaSized?.Invoke(this, (item, w, h));
+                    break;
+                case "overlayError":
+                    _logger.LogWarning("Overlay failed on host {Key}: {Message}", Key, message);
                     break;
                 case "stats":
                     _logger.LogInformation("Frame stats on host {Key}: {Stats}", Key,

@@ -29,6 +29,9 @@
             <ui:Button DockPanel.Dock="Left" Margin="8,0,0,0" Icon="{ui:SymbolIcon Code24}" Content="Paste a shader"
                        Command="{Binding TogglePasteShaderCommand}" />
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <TextBlock Text="Show" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <ComboBox MinWidth="140" Margin="0,0,16,0" ItemsSource="{x:Static vm:LibraryViewModel.Filters}" SelectedItem="{Binding Filter}"
+                          DisplayMemberPath="Label" AutomationProperties.Name="Show" />
                 <TextBlock Text="Apply to" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                 <ComboBox MinWidth="170" ItemsSource="{Binding Context.Targets}" SelectedItem="{Binding Context.SelectedTarget}"
                           DisplayMemberPath="Label" AutomationProperties.Name="Apply to display" />

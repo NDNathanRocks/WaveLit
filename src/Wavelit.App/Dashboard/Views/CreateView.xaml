@@ -6,13 +6,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:CreateViewModel}">
+    <!-- The Studio's Picture tab (the Studio page supplies the title). -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="28,20,28,80" MaxWidth="1000" HorizontalAlignment="Stretch">
-            <TextBlock Text="Create" Style="{StaticResource PageTitle}" />
-            <TextBlock Text="Describe a wallpaper and Wavelit paints it to fit your screens." Style="{StaticResource PageSubtitle}" />
-
+        <StackPanel Margin="0,0,0,60" MaxWidth="1000" HorizontalAlignment="Stretch">
             <!-- Prompt -->
-            <Grid Margin="0,18,0,0">
+            <Grid Margin="0,4,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />

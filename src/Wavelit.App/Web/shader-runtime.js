@@ -7,6 +7,8 @@
 //   iFocus    xy = where the subject belongs (primary display centre), z = that display's short side
 //   iViewport this window's slice of the canvas (x, y, width, height), all in fragCoord pixels
 //   iPointer, iClick, iTrail  the cursor over the desktop (see pointer.js); iMouse follows Shadertoy
+//   iAudio, iBeat, iSpectrum, iPeaks, iCentroid, iAudioPresence  the music playing (see audio.js)
+//   iParams   the shader's own sliders (a "// @params" first line; defaults when absent)
 // Shader source arrives as data (web message) and is only ever passed to gl.shaderSource.
 (function () {
   const VERTEX = `#version 300 es
@@ -39,6 +41,13 @@ uniform vec4 iClick;
 uniform vec4 iTrail[16];
 uniform vec4 wavelitTint;
 uniform vec4 wavelitStyle;
+uniform vec4 iAudio;
+uniform vec4 iBeat;
+uniform vec4 iSpectrum[16];
+uniform vec4 iPeaks[16];
+uniform float iCentroid;
+uniform float iAudioPresence;
+uniform vec4 iParams;
 out vec4 wavelitFragColor;
 `;
 
@@ -66,6 +75,37 @@ void main() {
 
   const HEADER_LINES = HEADER.split('\n').length - 1;
 
+  // Adaptive guard (plan §21.7): when frames keep arriving late, render at a lower resolution, then recover.
+  // One step per 5 s window with more than 20% late frames; one step back after 60 s without trouble.
+  const GUARD_STEPS = [1, 0.75, 0.5];
+  const GUARD_WINDOW_MS = 5000, GUARD_RECOVER_MS = 60000, GUARD_LATE = 0.2;
+  const AUDIO_UNIFORMS = /\b(iAudio|iBeat|iSpectrum|iPeaks|iCentroid|iAudioPresence)\b/;
+
+  // Tunables: an optional "// @params name min max default | …" line (up to 4) declares iParams.x..w.
+  // program.params (values chosen with the Studio sliders) override the defaults.
+  function parseParams(code) {
+    const m = /^[ \t]*\/\/[ \t]*@params[ \t]+(.+)$/m.exec(code || '');
+    if (!m) return [];
+    return m[1].split('|').slice(0, 4).map(part => {
+      const [name, lo, hi, def] = part.trim().split(/\s+/);
+      const min = Number(lo), max = Number(hi), value = Number(def);
+      if (!/^[A-Za-z][\w-]{0,23}$/.test(name || '') || ![min, max, value].every(Number.isFinite) || !(max > min)) return null;
+      return { name, min, max, value: Math.min(max, Math.max(min, value)) };
+    }).filter(Boolean);
+  }
+
+  function defaultParams(program) {
+    const image = (program.passes || []).find(p => p.type === 'image');
+    const declared = parseParams(image && image.code);
+    const chosen = Array.isArray(program.params) ? program.params : [];
+    const out = [0, 0, 0, 0];
+    declared.forEach((d, i) => {
+      const v = Number(chosen[i]);
+      out[i] = Number.isFinite(v) ? Math.min(d.max, Math.max(d.min, v)) : d.value;
+    });
+    return out;
+  }
+
   // Every live runtime, for the --frame-stats diagnostic.
   const live = new Set();
 
@@ -89,6 +129,7 @@ void main() {
       this.lastTick = 0;
       this.tick = 0;
       this.rendered = [];     // timestamps of recent rendered frames (frame stats)
+      this.guard = { level: 0, late: 0, total: 0, windowStart: 0, cleanSince: 0, lastRendered: 0 };
       live.add(this);
 
       const overlay = !!program.overlay;
@@ -104,7 +145,12 @@ void main() {
       canvas.addEventListener('webglcontextlost', this.onLost);
       canvas.addEventListener('webglcontextrestored', this.onRestored);
 
-      this.build();
+      try {
+        this.build();
+      } catch (err) {
+        this.dispose();   // a shader that doesn't compile releases its GPU context right away
+        throw err;
+      }
     }
 
     build() {
@@ -134,7 +180,7 @@ void main() {
         .filter(p => p.type === 'buffer' || p.type === 'image')
         .map(p => {
           const footer = p.type !== 'image' ? FOOTER_BUFFER : this.program.overlay ? FOOTER_OVERLAY : FOOTER_IMAGE;
-          const source = HEADER + common + '\n' + p.code + footer;
+          const source = HEADER + (common ? common + '\n' : '') + p.code + footer;
           const fs = this.compile(gl.FRAGMENT_SHADER, source, p.type === 'image' ? 'Image' : 'Buffer',
             HEADER_LINES + (common ? common.split('\n').length : 0));
           const prog = gl.createProgram();
@@ -161,14 +207,19 @@ void main() {
               ch: [u('iChannel0'), u('iChannel1'), u('iChannel2'), u('iChannel3')],
               focus: u('iFocus'), viewport: u('iViewport'), offset: u('wavelitOffset'),
               pointer: u('iPointer'), click: u('iClick'), trail: u('iTrail'), tint: u('wavelitTint'), style: u('wavelitStyle'),
+              audio: u('iAudio'), beat: u('iBeat'), spectrum: u('iSpectrum'), peaks: u('iPeaks'),
+              centroid: u('iCentroid'), presence: u('iAudioPresence'), params: u('iParams'),
             },
             usesPointer: /\b(iMouse|iPointer|iClick|iTrail)\b/.test(p.code + common),
+            usesAudio: AUDIO_UNIFORMS.test(p.code + common),
           };
         });
       gl.deleteShader(vs);
 
       if (!this.passes.some(p => p.type === 'image')) throw new Error('Shader has no image pass.');
       this.usesPointer = this.passes.some(p => p.usesPointer);
+      this.usesAudio = this.passes.some(p => p.usesAudio);
+      this.params = defaultParams(this.program);
 
       for (const pass of this.passes) {
         for (const input of pass.inputs) {
@@ -253,7 +304,7 @@ void main() {
     resize() {
       const opts = this.getOptions();
       const px = this.getPixelSize();
-      const scale = Math.min(1, Math.max(0.25, opts.scale || 1));
+      const scale = Math.min(1, Math.max(0.25, (opts.scale || 1) * GUARD_STEPS[this.guard ? this.guard.level : 0]));
       const w = Math.max(1, Math.round(px.width * scale));
       const h = Math.max(1, Math.round(px.height * scale));
       if (this.canvas.width === w && this.canvas.height === h && this.targets.size === this.bufferCount()) return;
@@ -306,6 +357,7 @@ void main() {
       this.running = true;
       this.lastFrame = 0;
       this.lastTick = 0;
+      this.guard.lastRendered = 0;   // a pause is not a late frame
       this.raf = requestAnimationFrame(this.onFrame);
     }
 
@@ -332,6 +384,7 @@ void main() {
       this.lastTick = now;
       const divisor = Math.max(1, Math.round(1000 / fps / (this.vsync || 1000 / 60)));
       if (++this.tick % divisor !== 0) return;
+      this.watch(now, divisor * (this.vsync || 1000 / 60));
       this.rendered.push(now);
       if (this.rendered.length > 600) this.rendered.splice(0, this.rendered.length - 600);
       // iTime follows the page's wallpaper timeline (shared between Extend slices).
@@ -341,6 +394,34 @@ void main() {
       this.time = time;
       this.fpsEstimate = this.fpsEstimate * 0.9 + (1 / Math.max(dt, 1e-3)) * 0.1;
       if (!this.gl.isContextLost()) this.render(dt);
+    }
+
+    watch(now, expected) {
+      const g = this.guard;
+      if (g.lastRendered) {
+        const interval = now - g.lastRendered;
+        if (interval < 1000) {   // longer gaps are the page being hidden or paused, not slowness
+          g.total++;
+          if (interval > expected * 1.6) g.late++;
+        }
+      }
+      g.lastRendered = now;
+      if (!g.windowStart) { g.windowStart = now; g.cleanSince = now; }
+      if (now - g.windowStart < GUARD_WINDOW_MS) return;
+      const struggling = g.total >= 20 && g.late / g.total > GUARD_LATE;
+      let changed = false;
+      if (struggling) {
+        g.cleanSince = now;
+        if (g.level < GUARD_STEPS.length - 1) { g.level++; changed = true; }
+      } else if (g.level > 0 && now - g.cleanSince >= GUARD_RECOVER_MS) {
+        g.level--;
+        g.cleanSince = now;
+        changed = true;
+      }
+      g.windowStart = now;
+      g.late = 0;
+      g.total = 0;
+      if (changed) this.resize();
     }
 
     // Maps the canvas (physical px, top-left origin) to fragCoord space (render-scaled, bottom-left origin).
@@ -365,6 +446,7 @@ void main() {
         d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000];
       const ptr = this.usesPointer && window.WavelitPointer ? window.WavelitPointer.sample(space.k, space.canvasHeight) : null;
       const tint = this.program.tint ? this.program.tint() : null;
+      const snd = this.usesAudio && window.WavelitAudio ? window.WavelitAudio.sample() : null;
       const style = this.program.style ? this.program.style() : null;
 
       for (const pass of this.passes) {
@@ -430,6 +512,17 @@ void main() {
         if (L.tint) gl.uniform4fv(L.tint, tint || [1, 1, 1, 1]);
         if (L.style) gl.uniform4fv(L.style, style || [1, 1, 1, 1]);
         if (L.date) gl.uniform4fv(L.date, date);
+        if (snd) {
+          if (L.audio) gl.uniform4fv(L.audio, snd.audio);
+          if (L.beat) gl.uniform4fv(L.beat, snd.beat);
+          if (L.spectrum) gl.uniform4fv(L.spectrum, snd.spectrum);
+          if (L.peaks) gl.uniform4fv(L.peaks, snd.peaks);
+          if (L.centroid) gl.uniform1f(L.centroid, snd.centroid);
+          if (L.presence) gl.uniform1f(L.presence, snd.presence);
+        } else if (L.beat) {
+          gl.uniform4f(L.beat, 0, 1e4, 0, 0);
+        }
+        if (L.params) gl.uniform4fv(L.params, this.params);
         if (L.sampleRate) gl.uniform1f(L.sampleRate, 44100);
         for (let ch = 0; ch < 4; ch++) if (L.ch[ch]) gl.uniform1i(L.ch[ch], ch);
 
@@ -461,6 +554,7 @@ void main() {
         p95JitterMs: Math.round(dev[Math.floor(dev.length * 0.95)] * 100) / 100,
         refreshHz: this.vsync ? Math.round(10000 / this.vsync) / 10 : null,
         frames: t.length,
+        resolution: GUARD_STEPS[this.guard.level],   // < 1 while the adaptive guard has eased resolution down
       };
     }
 
@@ -472,14 +566,15 @@ void main() {
       this.canvas.removeEventListener('webglcontextlost', this.onLost);
       this.canvas.removeEventListener('webglcontextrestored', this.onRestored);
       if (!gl.isContextLost()) {
-        for (const t of this.targets.values()) this.deleteTarget(t);
-        for (const t of this.textures.values()) gl.deleteTexture(t.tex);
-        for (const s of this.samplers.values()) gl.deleteSampler(s);
+        // Any of these may be missing when a build failed part-way.
+        if (this.targets) for (const t of this.targets.values()) this.deleteTarget(t);
+        if (this.textures) for (const t of this.textures.values()) gl.deleteTexture(t.tex);
+        if (this.samplers) for (const s of this.samplers.values()) gl.deleteSampler(s);
         for (const p of this.passes || []) gl.deleteProgram(p.prog);
-        gl.deleteTexture(this.black);
-        gl.deleteTexture(this.keyboard);
-        gl.deleteBuffer(this.vbo);
-        gl.deleteVertexArray(this.vao);
+        if (this.black) gl.deleteTexture(this.black);
+        if (this.keyboard) gl.deleteTexture(this.keyboard);
+        if (this.vbo) gl.deleteBuffer(this.vbo);
+        if (this.vao) gl.deleteVertexArray(this.vao);
       }
       // Release the GPU context immediately instead of waiting for garbage collection.
       const lose = gl.getExtension('WEBGL_lose_context');
@@ -487,6 +582,13 @@ void main() {
     }
   }
 
+  /** Sets the slider values live (Studio tunables) without rebuilding. */
+  ShaderRuntime.prototype.setParams = function (values) {
+    this.program = Object.assign({}, this.program, { params: values });
+    this.params = defaultParams(this.program);
+  };
+
   window.WavelitShaderRuntime = ShaderRuntime;
+  window.WavelitShaderParams = parseParams;
   window.WavelitFrameStats = () => Array.from(live).map(r => r.frameStats()).filter(Boolean);
 })();

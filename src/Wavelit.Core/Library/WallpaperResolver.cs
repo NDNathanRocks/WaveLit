@@ -81,7 +81,7 @@ public sealed class WallpaperResolver(MediaCache cache, ShadertoyClient shaderto
             case WallpaperKind.Shader:
                 var program = item.IsBuiltIn
                     ? BuiltInShaders.Program(item.ShaderId ?? "") ?? throw new LibrarySourceException("Unknown built-in shader.")
-                    : item.Source == WallpaperSources.Pasted
+                    : item.Source is WallpaperSources.Pasted or WallpaperSources.GeneratedShader
                         ? PastedShader.Program(item)
                         : await shadertoy.BuildProgramAsync(item.ShaderId ?? "", ct).ConfigureAwait(false);
                 return new ResolvedWallpaper.Shader(item, program);

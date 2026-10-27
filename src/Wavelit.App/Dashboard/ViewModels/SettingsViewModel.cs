@@ -2,6 +2,7 @@ using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Wavelit.App.Services;
+using Wavelit.Core.Create.Shaders;
 using Wavelit.Core.Library.Pexels;
 using Wavelit.Core.Library.Shadertoy;
 using Wavelit.Core.Library;
@@ -26,6 +27,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly AppPaths _paths;
     private readonly PixabaySource _pixabay;
     private readonly IHttpClientFactory _http;
+    private readonly ClaudeShaderAuthor _claude;
 
     [ObservableProperty] private string _pexelsKey = "";
     [ObservableProperty] private string _shadertoyKey = "";
@@ -37,11 +39,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _cloudflareAccount = "";
     [ObservableProperty] private string _cloudflareToken = "";
     [ObservableProperty] private string? _cloudflareStatus;
+    [ObservableProperty] private string _anthropicKey = "";
+    [ObservableProperty] private string? _anthropicStatus;
 
     public SettingsViewModel(DashboardContext context, SecretStore secrets, PexelsClient pexels, ShadertoyClient shadertoy, MediaCache cache, AppPaths paths,
-        PixabaySource pixabay, IHttpClientFactory http, LocalAiViewModel localAi)
+        PixabaySource pixabay, IHttpClientFactory http, LocalAiViewModel localAi, ClaudeShaderAuthor claude)
     {
         _pixabay = pixabay;
+        _claude = claude;
+        _anthropicKey = secrets.Get(SecretNames.AnthropicApiKey) ?? "";
+        _anthropicStatus = secrets.Has(SecretNames.AnthropicApiKey) ? "Key saved" : null;
         _http = http;
         LocalAi = localAi;
         _pixabayKey = secrets.Get(SecretNames.PixabayApiKey) ?? "";
@@ -70,10 +77,38 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _settings.Update(change);
         OnPropertyChanged(property);
+        // A preset sets motion and resolution together, and either one can turn the preset into Custom.
+        OnPropertyChanged(nameof(SelectedPreset));
+        OnPropertyChanged(nameof(SelectedFps));
+        OnPropertyChanged(nameof(SelectedScale));
     }
 
     public IReadOnlyList<Choice<int>> FpsChoices { get; } =
-        [new("Pristine: silky, matched to your screen (recommended)", 60), new("Balanced: 30 fps, lighter on the GPU", 30), new("Saver: 15 fps, lowest power", 15)];
+        [new("Matched to your screen (up to 144 fps)", 144), new("Smooth: 60 fps", 60), new("Light: 30 fps", 30), new("Saver: 15 fps, lowest power", 15)];
+
+    /// <summary>One-click presets (plan §21.2): motion and resolution together.</summary>
+    public IReadOnlyList<Choice<QualityPreset>> PresetChoices { get; } =
+    [
+        new("Pristine: desktops with a graphics card", QualityPresets.Pristine),
+        new("Balanced: most PCs (recommended)", QualityPresets.Balanced),
+        new("Saver: laptops and battery", QualityPresets.Saver),
+        new("Custom", QualityPresets.Custom),
+    ];
+
+    public Choice<QualityPreset> SelectedPreset
+    {
+        get => PresetChoices.First(c => c.Value == QualityPresets.Of(S));
+        set
+        {
+            if (value is null || value.Value == QualityPresets.Custom) return;
+            Update(s => s with { ShaderFpsCap = value.Value.Fps, ShaderRenderScale = value.Value.Scale });
+        }
+    }
+
+    // ---- audio (plan §20.2)
+    public bool AudioEnabled { get => S.Audio.Enabled; set => Update(s => s with { Audio = s.Audio with { Enabled = value } }); }
+    public double AudioSensitivity { get => S.Audio.Sensitivity * 100; set => Update(s => s with { Audio = s.Audio with { Sensitivity = value / 100 } }); }
+    public bool ReduceFlashing { get => S.Audio.ReduceFlashing; set => Update(s => s with { Audio = s.Audio with { ReduceFlashing = value } }); }
 
     public IReadOnlyList<Choice<double>> ScaleChoices { get; } =
         [new("50% (fastest)", 0.5), new("75% (recommended)", 0.75), new("100% (sharpest)", 1.0)];
@@ -299,7 +334,39 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
         _secrets.Set(SecretNames.CloudflareAccountId, account);
         _secrets.Set(SecretNames.CloudflareApiToken, token);
-        CloudflareStatus = "Connected ✓ Choose \"Cloudflare\" on the Create page.";
+        CloudflareStatus = "Connected ✓ Choose \"Cloudflare\" in the Studio (pictures and shaders).";
+    }
+
+    // ---- AI Studio
+
+    public IReadOnlyList<Choice<string>> StudioModels { get; } =
+        ClaudeShaderAuthor.Models.Select(m => new Choice<string>(m.Label, m.Id)).ToList();
+
+    public Choice<string> SelectedStudioModel
+    {
+        get => StudioModels.FirstOrDefault(m => m.Value == ClaudeShaderAuthor.Normalize(_settings.Current.StudioModel)) ?? StudioModels[0];
+        set { if (value is not null) _settings.Update(s => s with { StudioModel = value.Value }); }
+    }
+
+    [RelayCommand]
+    private async Task SaveAnthropicKeyAsync()
+    {
+        string key = AnthropicKey.Trim();
+        if (key.Length == 0)
+        {
+            _secrets.Set(SecretNames.AnthropicApiKey, null);
+            AnthropicStatus = "Key removed";
+            return;
+        }
+        AnthropicStatus = "Checking…";
+        string? problem = await _claude.TestKeyAsync(key, CancellationToken.None);
+        if (problem is not null)
+        {
+            AnthropicStatus = problem;
+            return;
+        }
+        _secrets.Set(SecretNames.AnthropicApiKey, key);
+        AnthropicStatus = "Connected ✓ Choose \"Claude\" in the Studio.";
     }
 
     private async Task<bool> VerifyCloudflareTokenAsync(string token)

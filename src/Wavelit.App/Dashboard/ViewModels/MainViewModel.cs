@@ -14,25 +14,27 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty] private NavItem _selectedNav;
 
-    public MainViewModel(DashboardContext context, DiscoverViewModel discover, CreateViewModel create, LibraryViewModel library,
-        DisplaysViewModel displays, OverlaysViewModel overlays, SettingsViewModel settings, AboutViewModel about, WallpaperService wallpapers)
+    public MainViewModel(DashboardContext context, DiscoverViewModel discover, StudioViewModel studio, LibraryViewModel library,
+        DisplaysViewModel displays, OverlaysViewModel overlays, DesktopViewModel desktop, SettingsViewModel settings, AboutViewModel about, WallpaperService wallpapers)
     {
         Context = context;
         Discover = discover;
-        Create = create;
+        Studio = studio;
         Library = library;
         Displays = displays;
         Overlays = overlays;
+        Desktop = desktop;
         Settings = settings;
         About = about;
         _wallpapers = wallpapers;
         NavItems =
         [
             new("Discover", "Discover", SymbolRegular.Search24, discover),
-            new("Create", "Create", SymbolRegular.Sparkle24, create),
+            new("Studio", "Studio", SymbolRegular.Sparkle24, studio),
             new("Library", "Library", SymbolRegular.ImageMultiple24, library),
             new("Displays", "Displays", SymbolRegular.Desktop24, displays),
             new("Overlays", "Overlays", SymbolRegular.Layer24, overlays),
+            new("Desktop", "Desktop", SymbolRegular.DesktopEdit24, desktop),
             new("Settings", "Settings", SymbolRegular.Settings24, settings),
             new("About", "About", SymbolRegular.Info24, about),
         ];
@@ -44,10 +46,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public DashboardContext Context { get; }
     public DiscoverViewModel Discover { get; }
-    public CreateViewModel Create { get; }
+    public StudioViewModel Studio { get; }
     public LibraryViewModel Library { get; }
     public DisplaysViewModel Displays { get; }
     public OverlaysViewModel Overlays { get; }
+    public DesktopViewModel Desktop { get; }
     public SettingsViewModel Settings { get; }
     public AboutViewModel About { get; }
     public IReadOnlyList<NavItem> NavItems { get; }
@@ -60,7 +63,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     {
         if (value.Page is DiscoverViewModel d) d.Activate();
         if (value.Page is AboutViewModel a) a.Activate();
-        if (value.Page is CreateViewModel c) c.Activate();
+        if (value.Page is StudioViewModel c) c.Activate();
     }
 
     [RelayCommand]
@@ -84,10 +87,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         Context.NavigationRequested -= OnNavigationRequested;
         Context.PropertyChanged -= OnContextChanged;
         Discover.Dispose();
-        Create.Dispose();
+        Studio.Dispose();
         Library.Dispose();
         Displays.Dispose();
         Overlays.Dispose();
+        Desktop.Dispose();
         Settings.Dispose();
         Context.Dispose();
     }

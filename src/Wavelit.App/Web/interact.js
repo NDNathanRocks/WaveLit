@@ -457,6 +457,81 @@ void mainImage(out vec4 o, in vec2 fc) {
   float dark = vig + max(-grain, 0.0);
   o = vec4(light, clamp(dark, 0.0, 1.0)) * wavelitStyle.w;
 }`,
+
+    // Resonant Stardust (music): dust that buzzes with the treble, is pushed by a shockwave on each kick
+    // (from the cursor while it's on the desktop), glows with loudness and gathers into Chladni figures on
+    // sustained notes. The helpers below are kept identical to BuiltInShaders.ResonanceLib (a test checks).
+    resonance: COMMON + `
+float rsHash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+// Sustained, tonal music gathers the dust; drums and silence let it drift.
+float rsGather() { return iAudioPresence * smoothstep(0.1, 0.32, iAudio.y * 0.8 + iAudio.z * 0.4) * (1.0 - 0.5 * iBeat.x); }
+vec3 rsTint(float brightness) { return mix(vec3(1.0, 0.7, 0.42), vec3(0.72, 0.84, 1.0), smoothstep(0.3, 0.65, brightness)); }
+
+// Chladni plate f = cos(nπx)cos(mπy) − cos(mπx)cos(nπy) and its gradient (analytic, plate units).
+vec3 rsPlate(vec2 q, float n, float m) {
+    const float PI = 3.14159265;
+    float a = n * PI, b = m * PI;
+    float cax = cos(a * q.x), sax = sin(a * q.x), cbx = cos(b * q.x), sbx = sin(b * q.x);
+    float cay = cos(a * q.y), say = sin(a * q.y), cby = cos(b * q.y), sby = sin(b * q.y);
+    float f = cax * cby - cbx * cay;
+    vec2 g = vec2(-a * sax * cby + b * sbx * cay, -b * cax * sby + a * cbx * say);
+    return vec3(f, g);
+}
+
+// Brightness of the dust at p (focus units). centre = where shockwaves start.
+float rsDust(vec2 p, vec2 centre, float sizeScale, float density, float t) {
+    float treble = iAudio.z, level = iAudio.w, pres = iAudioPresence;
+    float since = iBeat.y;
+    float ring = since * 0.85;
+    float ringAmp = pres * exp(-since * 2.4) * step(since, 3.0);
+    float gather = rsGather();
+    float n = 2.0 + iCentroid * 5.0, m = n + 1.35;
+    float a = 0.0;
+    for (int layer = 0; layer < 2; layer++) {
+        float scale = layer == 0 ? 44.0 : 26.0;
+        float seed = float(layer) * 31.7;
+        vec2 id0 = floor(p * scale);
+        for (int j = -1; j <= 1; j++) {
+            for (int i = -1; i <= 1; i++) {
+                vec2 id = id0 + vec2(float(i), float(j));
+                float h = rsHash(id + seed);
+                if (h > density) continue;
+                vec2 pos = (id + 0.5 + (vec2(rsHash(id + seed + 7.3), rsHash(id + seed + 1.9)) - 0.5) * 0.78) / scale;
+                pos += 0.14 / scale * vec2(sin(t * 0.31 + h * 20.0), cos(t * 0.27 + h * 13.0));
+                // Buzz: treble shakes every mote in place, each with its own phase.
+                pos += treble * treble * 0.12 / scale * vec2(sin(t * 37.0 + h * 91.0), cos(t * 31.0 + h * 57.0));
+                // Shockwave from the kick, then the dust settles back.
+                vec2 rel = pos - centre;
+                float r = length(rel);
+                pos += (r > 1e-5 ? rel / r : vec2(0.0)) * ringAmp * 0.45 / scale * exp(-pow((r - ring) / 0.07, 2.0));
+                // Cymatics: a bounded Newton step towards the plate's nodal line.
+                float near = 1.0;
+                if (gather > 0.01) {
+                    vec3 pl = rsPlate(pos / 0.6, n, m);
+                    vec2 grad = pl.yz / 0.6;
+                    vec2 stepv = -pl.x * grad / max(dot(grad, grad), 1e-3);
+                    float len = length(stepv), lim = 0.32 / scale;
+                    pos += (len > lim ? stepv * lim / len : stepv) * gather;
+                    near = mix(1.0, 0.18 + 1.5 * exp(-abs(pl.x) * 7.0), gather);
+                }
+                float d = length(p - pos);
+                float rad = (layer == 0 ? 0.0024 : 0.0036) * sizeScale * (1.0 + 0.5 * level);
+                float twinkle = 0.6 + 0.4 * sin(t * (0.7 + h * 1.9) + h * 40.0);
+                a += (smoothstep(rad, 0.0, d) + exp(-d * d / (rad * rad * 6.0)) * 0.25 * (0.3 + level)) * near * twinkle * (layer == 0 ? 1.0 : 0.6);
+            }
+        }
+    }
+    return a;
+}
+
+void mainImage(out vec4 o, in vec2 fc) {
+  vec2 p = ilSpace(fc);
+  vec2 centre = ilPtr() * clamp(iPointer.z * 1.5, 0.0, 1.0);
+  float a = rsDust(p, centre, ilSize(), 0.25 + 0.5 * ilAmount(), ilTime());
+  float n = 2.0 + iCentroid * 5.0;
+  a += rsGather() * exp(-abs(rsPlate(p / 0.6, n, n + 1.35).x) * 10.0) * 0.1;
+  o = ilOut(wavelitTint.rgb * rsTint(iCentroid), a * (0.85 + 0.5 * iAudio.w + 0.2 * iBeat.x));
+}`,
   };
 
   // "Natural" colours: each overlay's own light.
@@ -473,6 +548,7 @@ void mainImage(out vec4 o, in vec2 fc) {
     silk: [0.85, 0.9, 1.0],
     aurora: [0.35, 1.0, 0.7],
     cinematic: [1.0, 1.0, 1.0],
+    resonance: [1.0, 1.0, 1.0],
   };
 
   function parseColor(value, style) {
@@ -487,9 +563,14 @@ void mainImage(out vec4 o, in vec2 fc) {
 
   // One overlay canvas above the wallpaper. Runs at the wallpaper's own rate (Pristine by default), raised
   // to at least 60 fps while the cursor is about, and never above 0.75 render scale.
+  // Overlays made in the Studio arrive as GLSL (data, only ever given to gl.shaderSource) and run after
+  // the same helpers as the built-in styles.
+  const MAX_CUSTOM = 64 * 1024;
+  const customCode = (code) => (typeof code === 'string' && code.length > 0 && code.length <= MAX_CUSTOM ? COMMON + code : null);
+
   function create(settings, container, timeline, getOptions, getView, getPixelSize) {
     const style = settings && settings.style;
-    const code = STYLES[style];
+    const code = STYLES[style] || (typeof style === 'string' && style.startsWith('custom-') ? customCode(settings.code) : null);
     if (!code) return null;
     const tint = parseColor(settings.color, style);
     const amount = num(settings.amount, 0.35);
@@ -499,6 +580,15 @@ void mainImage(out vec4 o, in vec2 fc) {
       RESPONSE[settings.response] !== undefined ? RESPONSE[settings.response] : 1,
       0.15 + num(settings.opacity, 1) * 0.85,                            // opacity 0.15 .. 1
     ];
+    // "Music": any overlay swells gently with the music (size and opacity follow loudness and the beat).
+    // Density never changes, so no particle pops in or out; silence leaves the user's settings as they are.
+    const music = !!settings.music && !!window.WavelitAudio;
+    const musicStyle = () => {
+      const s = window.WavelitAudio.sample();
+      const lift = s.presence * (0.55 * s.audio[3] + 0.4 * s.beat[0]);
+      return [uniforms[0] * (1 + 0.28 * lift), uniforms[1], uniforms[2],
+        Math.min(1, uniforms[3] * (1 - 0.25 * s.presence + 0.5 * lift))];
+    };
     const canvas = document.createElement('canvas');
     canvas.className = 'layer overlay interactive';
     container.appendChild(canvas);
@@ -511,8 +601,9 @@ void mainImage(out vec4 o, in vec2 fc) {
       name: 'overlay-' + style,
       overlay: true,
       tint: () => [tint[0], tint[1], tint[2], amount],
-      style: () => uniforms,
+      style: music ? musicStyle : () => uniforms,
       passes: [{ type: 'image', code, inputs: [] }],
+      params: Array.isArray(settings.params) ? settings.params.slice(0, 4) : undefined,   // Studio sliders
     };
     const runtime = new window.WavelitShaderRuntime(canvas, program, layerOptions, getPixelSize, getView, timeline);
     return {
@@ -529,6 +620,10 @@ void mainImage(out vec4 o, in vec2 fc) {
     styles: Object.keys(STYLES),
     /** GLSL of a style (used by the shader test harness). */
     code: (style) => STYLES[style] || null,
+    /** Full GLSL of a Studio overlay: the shared helpers plus its code. */
+    customCode,
+    /** The shared helpers alone (the Studio compiles them as a common pass, so errors point at the user's lines). */
+    common: COMMON,
     create,
   };
 })();

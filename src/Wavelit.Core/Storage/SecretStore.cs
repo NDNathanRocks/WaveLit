@@ -11,6 +11,7 @@ public static class SecretNames
     public const string PixabayApiKey = "pixabay";
     public const string CloudflareAccountId = "cloudflare-account";
     public const string CloudflareApiToken = "cloudflare-token";
+    public const string AnthropicApiKey = "anthropic";
 }
 
 /// <summary>

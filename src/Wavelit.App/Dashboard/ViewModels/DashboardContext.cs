@@ -45,6 +45,7 @@ public sealed partial class DashboardContext : ObservableObject, IDisposable
     private void OnWallpaperError(object? sender, string message)
         => _dispatcher.BeginInvoke(() => Notify("Wallpaper problem", message, NoticeLevel.Error));
 
+    public WallpaperService Wallpapers => _wallpapers;
     public ThumbnailLoader Thumbnails { get; }
     public LibraryActions Actions { get; }
     public SettingsStore Settings { get; }

@@ -1,0 +1,288 @@
+<UserControl x:Class="Wavelit.App.Dashboard.Views.DesktopView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             xmlns:vm="clr-namespace:Wavelit.App.Dashboard.ViewModels"
+             xmlns:controls="clr-namespace:Wavelit.App.Dashboard.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DataContext="{d:DesignInstance vm:DesktopViewModel}"
+             IsVisibleChanged="OnVisibleChanged">
+    <UserControl.Resources>
+        <Style x:Key="PanelLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,12,0,5" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style x:Key="ThemeButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <StackPanel Margin="0,0,12,0">
+                            <Border x:Name="Card" Width="164" Height="92" CornerRadius="10" BorderThickness="1.5" ClipToBounds="True"
+                                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#1C2142" Offset="0" />
+                                        <GradientStop Color="#33203F" Offset="0.65" />
+                                        <GradientStop Color="#141221" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <ContentPresenter />
+                            </Border>
+                            <TextBlock Text="{Binding Name}" Margin="2,6,0,0" FontSize="13" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource FocusStrokeColorOuterBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="28,20,28,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Title and the master switch -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Desktop" Style="{StaticResource PageTitle}" />
+                <TextBlock Style="{StaticResource PageSubtitle}"
+                           Text="A clock, the date and your own title drawn right on the wallpaper, under your icons, plus a cleaner taskbar. Pick a theme, then drag things where you like. Changes show on your desktop as you make them." />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="20,6,0,0">
+                <TextBlock Text="Widgets on the desktop" VerticalAlignment="Center" Margin="0,0,10,0" FontWeight="SemiBold" />
+                <ui:ToggleSwitch IsChecked="{Binding WidgetsOn}" AutomationProperties.Name="Widgets on the desktop" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Themes -->
+        <ItemsControl Grid.Row="1" Margin="0,18,0,14" ItemsSource="{Binding Themes}" AutomationProperties.Name="Themes">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:ThemeCard}">
+                    <Button Style="{StaticResource ThemeButton}" ToolTip="{Binding Blurb}" AutomationProperties.Name="{Binding Name}"
+                            Command="{Binding DataContext.ApplyThemeCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding}">
+                        <Viewbox Margin="14,10" Stretch="Uniform" StretchDirection="DownOnly">
+                            <TextBlock Text="{Binding Sample}" FontFamily="{Binding Font}" FontWeight="{Binding Weight}" FontSize="40"
+                                       Foreground="{Binding Ink}" TextAlignment="Center" LineHeight="38" LineStackingStrategy="BlockLineHeight">
+                                <TextBlock.Effect>
+                                    <DropShadowEffect ShadowDepth="0" BlurRadius="{Binding GlowRadius}" Color="{Binding Ink.Color}" Opacity="0.9" />
+                                </TextBlock.Effect>
+                            </TextBlock>
+                        </Viewbox>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Editor: the live preview (a native window: nothing may overlap it) and the property panel -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="330" />
+            </Grid.ColumnDefinitions>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <ComboBox Width="230" ItemsSource="{Binding Monitors}" DisplayMemberPath="Label" SelectedItem="{Binding EditMonitor}"
+                              AutomationProperties.Name="Display to edit" ToolTip="The display shown in the editor" />
+                    <ItemsControl Grid.Column="1" Margin="12,0,0,0" ItemsSource="{Binding AddKinds}" VerticalAlignment="Center">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:Choice}">
+                                <ui:Button Margin="0,0,6,0" Padding="9,5" Icon="{ui:SymbolIcon Add16}" Content="{Binding Label}"
+                                           AutomationProperties.Name="{Binding Label, StringFormat=Add {0}}"
+                                           Command="{Binding DataContext.AddWidgetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                           CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <ui:Button Grid.Column="2" Icon="{ui:SymbolIcon ArrowUndo24}" Content="Undo" Command="{Binding UndoCommand}" />
+                </Grid>
+                <controls:DesktopPreview x:Name="Preview" Grid.Row="1" CornerRadius="10" MinHeight="260" />
+            </Grid>
+
+            <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,6,10">
+                    <!-- Selected widget -->
+                    <Border CornerRadius="10" Padding="16,12,16,16" BorderThickness="1"
+                            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                        <StackPanel>
+                            <Grid>
+                                <TextBlock Text="{Binding SelTitle}" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <ui:Button HorizontalAlignment="Right" Icon="{ui:SymbolIcon Delete24}" Appearance="Transparent" ToolTip="Remove this widget (Delete)"
+                                           AutomationProperties.Name="Remove widget" Command="{Binding DeleteSelectedCommand}"
+                                           Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}" />
+                            </Grid>
+                            <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}"
+                                       Text="Click a widget in the preview to style it, or add one above. Drag to move, Ctrl + scroll to resize, arrow keys to nudge (Shift for bigger steps). Hold Alt while dragging to turn off snapping." />
+
+                            <StackPanel Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Visibility="{Binding SelHasText, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="{Binding SelTextLabel}" Style="{StaticResource PanelLabel}" />
+                                    <ui:TextBox Text="{Binding SelText, UpdateSourceTrigger=PropertyChanged, Delay=300}" MaxLength="80" AutomationProperties.Name="{Binding SelTextLabel}" />
+                                </StackPanel>
+                                <StackPanel Visibility="{Binding SelIsClock, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Format" Style="{StaticResource PanelLabel}" />
+                                    <ComboBox ItemsSource="{Binding ClockFormats}" DisplayMemberPath="Label" SelectedItem="{Binding SelClockFormat}" AutomationProperties.Name="Clock format" />
+                                </StackPanel>
+                                <StackPanel Visibility="{Binding SelIsDate, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Format" Style="{StaticResource PanelLabel}" />
+                                    <ComboBox ItemsSource="{Binding DateFormats}" DisplayMemberPath="Label" SelectedItem="{Binding SelDateFormat}" AutomationProperties.Name="Date format" />
+                                </StackPanel>
+
+                                <StackPanel Visibility="{Binding SelIsText, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Font" Style="{StaticResource PanelLabel}" />
+                                    <ComboBox ItemsSource="{Binding Fonts}" SelectedItem="{Binding SelFont}" AutomationProperties.Name="Font">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate DataType="{x:Type vm:FontChoice}">
+                                                <TextBlock Text="{Binding Name}" FontFamily="{Binding Family}" FontSize="15" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Text="Weight" Style="{StaticResource PanelLabel}" />
+                                    <Slider Minimum="100" Maximum="900" TickFrequency="100" IsSnapToTickEnabled="True" Value="{Binding SelWeight, Delay=120}" AutomationProperties.Name="Weight" />
+                                </StackPanel>
+
+                                <TextBlock Style="{StaticResource PanelLabel}">
+                                    <Run Text="Size" /><Run Text="  ·  " /><Run Text="{Binding SelSize, StringFormat={}{0:0.#} %, Mode=OneWay}" />
+                                </TextBlock>
+                                <Slider Minimum="0.6" Maximum="30" SmallChange="0.2" LargeChange="2" Value="{Binding SelSize, Delay=120}" AutomationProperties.Name="Size" />
+
+                                <TextBlock Text="Colour" Style="{StaticResource PanelLabel}" />
+                                <ItemsControl ItemsSource="{Binding Swatches}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:Swatch}">
+                                            <Button Width="26" Height="26" Margin="0,0,6,6" Cursor="Hand" ToolTip="{Binding Name}" AutomationProperties.Name="{Binding Name}"
+                                                    Command="{Binding DataContext.PickColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border x:Name="Dot" CornerRadius="13" Background="{Binding Brush}" BorderThickness="2" BorderBrush="#33FFFFFF" />
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="Dot" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <ui:TextBox Text="{Binding SelColor, UpdateSourceTrigger=PropertyChanged, Delay=400}" MaxLength="7" PlaceholderText="#RRGGBB" AutomationProperties.Name="Colour code" />
+
+                                <TextBlock Style="{StaticResource PanelLabel}">
+                                    <Run Text="Opacity" /><Run Text="  ·  " /><Run Text="{Binding SelOpacity, StringFormat={}{0:0} %, Mode=OneWay}" />
+                                </TextBlock>
+                                <Slider Minimum="10" Maximum="100" Value="{Binding SelOpacity, Delay=120}" AutomationProperties.Name="Opacity" />
+
+                                <StackPanel Visibility="{Binding SelIsText, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="Letter spacing" Style="{StaticResource PanelLabel}" />
+                                    <Slider Minimum="-10" Maximum="80" Value="{Binding SelSpacing, Delay=120}" AutomationProperties.Name="Letter spacing" />
+                                    <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Content="Upper case" IsChecked="{Binding SelUpper}" />
+                                        <CheckBox Grid.Column="1" Content="Italic" IsChecked="{Binding SelItalic}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="10" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Align" Style="{StaticResource PanelLabel}" />
+                                        <ComboBox ItemsSource="{Binding Aligns}" DisplayMemberPath="Label" SelectedItem="{Binding SelAlign}" AutomationProperties.Name="Align" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Readability" Style="{StaticResource PanelLabel}" />
+                                        <ComboBox ItemsSource="{Binding Effects}" DisplayMemberPath="Label" SelectedItem="{Binding SelEffect}" AutomationProperties.Name="Readability effect" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Text="Display" Style="{StaticResource PanelLabel}" />
+                                <ComboBox ItemsSource="{Binding WidgetMonitors}" DisplayMemberPath="Label" SelectedItem="{Binding SelMonitor}" AutomationProperties.Name="Display for this widget" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Taskbar -->
+                    <Border Margin="0,14,0,0" CornerRadius="10" Padding="16,12,16,16" BorderThickness="1"
+                            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="WindowWrench24" Margin="0,0,8,0" />
+                                <TextBlock Text="Taskbar" FontSize="16" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <TextBlock Text="Icons" Style="{StaticResource PanelLabel}" />
+                            <ComboBox ItemsSource="{Binding TaskbarAligns}" DisplayMemberPath="Label" SelectedItem="{Binding TaskbarAlign}" AutomationProperties.Name="Taskbar icons" />
+                            <Grid Margin="0,14,0,0">
+                                <StackPanel Margin="0,0,60,0">
+                                    <TextBlock Text="Invisible taskbar" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Caption}" Text="Hidden until you point at the bottom of the screen, so your wallpaper fills the whole display." />
+                                </StackPanel>
+                                <ui:ToggleSwitch HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding TaskbarAutoHide}" AutomationProperties.Name="Invisible taskbar" />
+                            </Grid>
+                            <Grid Margin="0,14,0,0">
+                                <StackPanel Margin="0,0,60,0">
+                                    <TextBlock Text="Keep after quitting Wavelit" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Caption}" Text="Off: your own taskbar settings come back when Wavelit closes." />
+                                </StackPanel>
+                                <ui:ToggleSwitch HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding TaskbarKeep}" AutomationProperties.Name="Keep taskbar settings after quitting" />
+                            </Grid>
+                            <TextBlock Style="{StaticResource Caption}" Margin="0,12,0,0" Foreground="{DynamicResource SystemFillColorCautionBrush}"
+                                       Text="{Binding TaskbarProblem}" Visibility="{Binding HasTaskbarProblem, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Style="{StaticResource Caption}" Margin="0,12,0,0"
+                                       Text="Wavelit uses Windows' own taskbar settings: nothing is injected into Explorer and no admin rights are needed." />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

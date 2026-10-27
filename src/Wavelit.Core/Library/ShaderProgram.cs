@@ -11,7 +11,8 @@ public static class WebHosts
 }
 
 /// <summary>Renderer-neutral shader description consumed by Web/shader-runtime.js.</summary>
-public sealed record ShaderProgram(string Name, IReadOnlyList<ShaderPass> Passes);
+/// <param name="Params">Slider values for a shader that declares <c>// @params</c> (null = its defaults).</param>
+public sealed record ShaderProgram(string Name, IReadOnlyList<ShaderPass> Passes, IReadOnlyList<double>? Params = null);
 
 /// <param name="Type">"image", "buffer" or "common".</param>
 /// <param name="OutputId">For buffers: id other passes use to sample this buffer.</param>

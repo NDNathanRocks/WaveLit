@@ -16,14 +16,22 @@
                     <ControlTemplate TargetType="ListBoxItem">
                         <Border x:Name="Card" Width="216" Margin="0,0,14,14" CornerRadius="10" BorderThickness="1.5"
                                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                Tag="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                            <Border.ContextMenu>
+                                <ContextMenu Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibility}}">
+                                    <MenuItem Header="Remove this overlay"
+                                              Command="{Binding PlacementTarget.Tag.RemoveCustomCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                              CommandParameter="{Binding}" />
+                                </ContextMenu>
+                            </Border.ContextMenu>
                             <StackPanel>
                                 <Border Height="135" CornerRadius="9,9,0,0" ClipToBounds="True" Background="#1B1F3B">
                                     <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality" />
                                 </Border>
                                 <StackPanel Margin="12,9,12,11">
-                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" />
-                                    <TextBlock Text="{Binding Description}" Margin="0,2,0,0" FontSize="12" TextWrapping="Wrap" Height="32"
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Description}" Margin="0,2,0,0" FontSize="12" TextWrapping="Wrap" Height="32" TextTrimming="CharacterEllipsis"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 </StackPanel>
                             </StackPanel>
@@ -49,7 +57,7 @@
         <StackPanel Margin="28,20,28,80" MaxWidth="1000" HorizontalAlignment="Left">
             <TextBlock Text="Overlays" Style="{StaticResource PageTitle}" />
             <TextBlock Style="{StaticResource PageSubtitle}" TextWrapping="Wrap"
-                       Text="A subtle layer over any wallpaper. Pick one and move your mouse over the desktop: it applies instantly and only runs while the wallpaper is visible." />
+                       Text="A subtle layer over any wallpaper. Pick one and move your mouse over the desktop: it applies instantly and only runs while the wallpaper is visible. Make your own in the Studio." />
 
             <ListBox Margin="0,20,0,0" ItemsSource="{Binding Cards}" SelectedItem="{Binding SelectedCard}"
                      ItemContainerStyle="{StaticResource OverlayCardItem}" Background="Transparent" BorderThickness="0"
@@ -139,6 +147,16 @@
                         </StackPanel>
                     </ui:CardControl.Header>
                     <ui:ToggleSwitch IsChecked="{Binding ClickBursts}" AutomationProperties.Name="Click bursts" />
+                </ui:CardControl>
+                <ui:CardControl Icon="{ui:SymbolIcon MusicNote224}" Margin="0,0,0,4">
+                    <ui:CardControl.Header>
+                        <StackPanel>
+                            <TextBlock Text="Move with the music" FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                       Text="The overlay swells gently with whatever your PC is playing. It listens only while the desktop is visible, never to the microphone, and nothing is recorded." />
+                        </StackPanel>
+                    </ui:CardControl.Header>
+                    <ui:ToggleSwitch IsChecked="{Binding Music}" AutomationProperties.Name="Move with the music" />
                 </ui:CardControl>
             </StackPanel>
         </StackPanel>

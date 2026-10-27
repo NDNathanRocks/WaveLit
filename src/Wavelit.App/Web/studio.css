@@ -1,0 +1,79 @@
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0b10;
+  user-select: none;
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+}
+
+/* One display's slice of the preview canvas (or the whole preview). */
+.screen {
+  position: absolute;
+  overflow: hidden;
+  background: #000;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.screen canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.screen canvas.overlay {
+  z-index: 2;
+}
+
+#empty {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+#empty.hidden {
+  display: none;
+}
+
+#empty p {
+  max-width: 360px;
+  margin: 6px 0 0;
+}
+
+#empty .small {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+#empty .glyph {
+  font-size: 34px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+#hint {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  pointer-events: none;
+}

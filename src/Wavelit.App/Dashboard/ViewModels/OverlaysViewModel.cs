@@ -1,34 +1,38 @@
+using System.Collections.ObjectModel;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Wavelit.Core.Storage;
 
 namespace Wavelit.App.Dashboard.ViewModels;
 
-/// <summary>One card in the overlay gallery.</summary>
-public sealed partial class OverlayCard(string id, string name, string description) : ObservableObject
+/// <summary>One card in the overlay gallery (a built-in style, or one made in the Studio).</summary>
+public sealed partial class OverlayCard(string id, string name, string description, string? thumbnailPath = null) : ObservableObject
 {
     public string Id { get; } = id;
     public string Name { get; } = name;
     public string Description { get; } = description;
-    public ImageSource? Thumbnail { get; } = LoadThumbnail(id);
+    public bool IsCustom => InteractiveSettings.IsCustom(Id);
+    public ImageSource? Thumbnail { get; } = LoadThumbnail(id, thumbnailPath);
     [ObservableProperty] private bool _isSelected;
 
     public override string ToString() => Name; // what screen readers announce
 
-    private static ImageSource? LoadThumbnail(string id)
+    private static ImageSource? LoadThumbnail(string id, string? path)
     {
+        if (InteractiveSettings.IsCustom(id) && (path is null || !System.IO.File.Exists(path))) return null;
         try
         {
             var image = new BitmapImage();
             image.BeginInit();
-            image.UriSource = new Uri($"pack://application:,,,/Assets/Overlays/{id}.jpg");
+            image.UriSource = path is not null ? new Uri(path) : new Uri($"pack://application:,,,/Assets/Overlays/{id}.jpg");
             image.CacheOption = BitmapCacheOption.OnLoad;
             image.EndInit();
             image.Freeze();
             return image;
         }
-        catch (Exception ex) when (ex is System.IO.IOException or NotSupportedException)
+        catch (Exception ex) when (ex is System.IO.IOException or NotSupportedException or UriFormatException)
         {
             return null;
         }
@@ -44,10 +48,13 @@ public sealed partial class OverlaysViewModel : ObservableObject, IDisposable
 {
     private bool _syncing;
 
-    public OverlaysViewModel(DashboardContext context)
+    private readonly AppPaths _paths;
+
+    public OverlaysViewModel(DashboardContext context, AppPaths paths)
     {
+        _paths = paths;
         Context = context;
-        Cards =
+        _builtIn =
         [
             new(InteractiveSettings.Off, "None", "Just your wallpaper."),
             new("stardust", "Stardust", "Sparse drifting dust that parts around your cursor."),
@@ -62,13 +69,44 @@ public sealed partial class OverlaysViewModel : ObservableObject, IDisposable
             new("silk", "Silk trail", "The cursor draws a fading ribbon of light."),
             new("aurora", "Aurora veil", "Faint curtains of light that sway away from the cursor."),
             new("cinematic", "Cinematic", "Film grain, a gentle vignette and a warm light leak."),
+            new("resonance", "Resonant Stardust", "Music: dust that buzzes, ripples on the beat and gathers into patterns."),
         ];
+        foreach (var c in _builtIn) Cards.Add(c);
         context.Settings.Changed += OnSettingsChanged;
         Sync();
     }
 
+    private readonly IReadOnlyList<OverlayCard> _builtIn;
+
     public DashboardContext Context { get; }
-    public IReadOnlyList<OverlayCard> Cards { get; }
+    /// <summary>The built-in styles, then the user's Studio overlays (newest last).</summary>
+    public ObservableCollection<OverlayCard> Cards { get; } = [];
+
+    /// <summary>Keeps the Studio overlays in the gallery in step with settings.</summary>
+    private void SyncCustomCards()
+    {
+        var custom = Context.Settings.Current.CustomOverlays;
+        var shown = Cards.Where(c => c.IsCustom).ToList();
+        foreach (var card in shown.Where(c => !custom.ContainsKey(c.Id))) Cards.Remove(card);
+        foreach (var (id, overlay) in custom)
+        {
+            if (shown.Any(c => c.Id == id)) continue;
+            Cards.Add(new OverlayCard(id, overlay.Title, "Made in Studio" + (overlay.Prompt is { Length: > 0 } p ? ": " + p : "."), overlay.ThumbnailPath));
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveCustom(OverlayCard? card)
+    {
+        if (card is not { IsCustom: true }) return;
+        string? thumb = Context.Settings.Current.CustomOverlays.TryGetValue(card.Id, out var o) ? o.ThumbnailPath : null;
+        // Normalize turns any use of a missing overlay off (globally and per wallpaper).
+        Context.Settings.Update(s => s with { CustomOverlays = s.CustomOverlays.Where(kv => kv.Key != card.Id).ToDictionary(kv => kv.Key, kv => kv.Value) });
+        if (thumb is not null && System.IO.Path.GetFullPath(thumb).StartsWith(_paths.Creations + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            try { System.IO.File.Delete(thumb); } catch (System.IO.IOException) { }
+        }
+    }
 
     public static IReadOnlyList<Choice> Colors { get; } =
     [
@@ -159,6 +197,8 @@ public sealed partial class OverlaysViewModel : ObservableObject, IDisposable
     }
 
     public bool ClickBursts { get => S.ClickBursts; set => Update(i => i with { ClickBursts = value }); }
+    /// <summary>The overlay swells gently with the music playing (audio overlays always do).</summary>
+    public bool Music { get => S.Music; set => Update(i => i with { Music = value }); }
 
     private void OnSettingsChanged(object? sender, AppSettings e)
         => System.Windows.Application.Current?.Dispatcher.BeginInvoke(Sync);
@@ -169,6 +209,7 @@ public sealed partial class OverlaysViewModel : ObservableObject, IDisposable
         _syncing = true;
         try
         {
+            SyncCustomCards();
             string? itemId = CurrentItemId;
             var settings = Context.Settings.Current;
             bool own = itemId is not null && settings.OverlayFor.ContainsKey(itemId);
@@ -182,7 +223,7 @@ public sealed partial class OverlaysViewModel : ObservableObject, IDisposable
             _syncing = false;
         }
         foreach (var name in new[] { nameof(Amount), nameof(Size), nameof(Speed), nameof(Opacity), nameof(SelectedColor),
-                     nameof(SelectedResponse), nameof(ClickBursts), nameof(CurrentWallpaperName), nameof(HasOverlay) })
+                     nameof(SelectedResponse), nameof(ClickBursts), nameof(Music), nameof(CurrentWallpaperName), nameof(HasOverlay) })
             OnPropertyChanged(name);
     }
 

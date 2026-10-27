@@ -17,6 +17,7 @@ namespace Wavelit.Core.Storage;
 /// <param name="Speed">0 … 1 (slower … faster drift).</param>
 /// <param name="Response">How strongly it reacts to the cursor: one of <see cref="Responses"/>.</param>
 /// <param name="Opacity">0 … 1.</param>
+/// <param name="Music">The overlay pulses gently with the music playing (plan §20.3). Audio overlays always do.</param>
 public sealed partial record InteractiveSettings(
     string Style = InteractiveSettings.Off,
     double Amount = 0.35,
@@ -25,7 +26,8 @@ public sealed partial record InteractiveSettings(
     double Size = 0.5,
     double Speed = 0.5,
     string Response = InteractiveSettings.Gentle,
-    double Opacity = 1.0)
+    double Opacity = 1.0,
+    bool Music = false)
 {
     public const string Off = "off";
     public const string None = "none", Gentle = "gentle", Playful = "playful";
@@ -34,8 +36,11 @@ public sealed partial record InteractiveSettings(
     public static readonly IReadOnlyList<string> Styles =
     [
         Off, "stardust", "fireflies", "constellation", "ripples", "petals", "snowfall",
-        "embers", "bokeh", "halo", "silk", "aurora", "cinematic",
+        "embers", "bokeh", "halo", "silk", "aurora", "cinematic", "resonance",
     ];
+
+    /// <summary>Overlays made for music (they always listen while visible).</summary>
+    public static readonly IReadOnlyList<string> AudioStyles = ["resonance"];
 
     /// <summary>Overlays that never use the cursor.</summary>
     public static readonly IReadOnlyList<string> Ambient = ["cinematic"];
@@ -47,13 +52,26 @@ public sealed partial record InteractiveSettings(
     /// <summary>The overlay needs the cursor feed (on, cursor-aware style, response not "none").</summary>
     [JsonIgnore] public bool UsesPointer => IsOn && Response != None && !Ambient.Contains(Style);
 
+    /// <summary>The overlay listens to the music: an audio overlay, or "Music" is on.</summary>
+    [JsonIgnore] public bool UsesAudio => IsOn && (Music || AudioStyles.Contains(Style));
+
+    /// <summary>Overlays made in the Studio are kept in <c>AppSettings.CustomOverlays</c> under ids with this prefix.</summary>
+    public const string CustomPrefix = "custom-";
+
+    public static bool IsCustom(string? style) => style is not null && style.StartsWith(CustomPrefix, StringComparison.Ordinal);
+
+    /// <summary>A built-in overlay id, or a custom one that exists.</summary>
+    public static bool IsKnown(string? style, IReadOnlyCollection<string>? custom)
+        => style is not null && (Styles.Contains(style) || IsCustom(style) && custom?.Contains(style) == true);
+
     /// <summary>These settings with a wallpaper's own overlay style, if it has one.</summary>
     public InteractiveSettings For(string? itemOverlay)
-        => itemOverlay is not null && Styles.Contains(itemOverlay) ? this with { Style = itemOverlay } : this;
+        => itemOverlay is not null && (Styles.Contains(itemOverlay) || IsCustom(itemOverlay)) ? this with { Style = itemOverlay } : this;
 
-    public InteractiveSettings Normalize() => this with
+    /// <param name="custom">Ids of the Studio overlays that exist (others fall back to off).</param>
+    public InteractiveSettings Normalize(IReadOnlyCollection<string>? custom = null) => this with
     {
-        Style = Styles.Contains(Style) ? Style : Off,
+        Style = IsKnown(Style, custom) ? Style : Off,
         Amount = Unit(Amount, 0.35),
         Color = Color is not null && HexColor().IsMatch(Color) ? Color : "auto",
         Size = Unit(Size, 0.5),

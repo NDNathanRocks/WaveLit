@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'">
+  <title>Wavelit Studio preview</title>
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="hint"></div>
+  <div id="empty">
+    <div class="glyph">✦</div>
+    <p>Your creation appears here, running live, before anything changes on your desktop.</p>
+    <p class="small">Every shader is checked first: it has to compile, run smoothly and show something.</p>
+  </div>
+  <script src="pointer.js"></script>
+  <script src="audio.js"></script>
+  <script src="shader-runtime.js"></script>
+  <script src="interact.js"></script>
+  <script src="studio.js"></script>
+</body>
+</html>

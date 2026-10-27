@@ -58,7 +58,8 @@ public sealed partial class CardViewModel : ObservableObject
     public bool CanRemove => _onRemove is not null && !Item.IsBuiltIn;
     public bool HasPage => Item.PageUrl is not null;
 
-    public string Badge => Item.Kind switch
+    /// <summary>"Made with AI" items get the label on their badge (plan §21.6).</summary>
+    public string Badge => Item.IsAiMade ? "MADE WITH AI" : Item.Kind switch
     {
         WallpaperKind.Video => "VIDEO",
         WallpaperKind.Shader => "LIVE SHADER",
@@ -82,6 +83,7 @@ public sealed partial class CardViewModel : ObservableObject
                 WallpaperSources.Shadertoy => "Shadertoy",
                 WallpaperSources.Pasted => "Your shader",
                 WallpaperSources.Generated => "Created by you",
+                WallpaperSources.GeneratedShader => "Made in Studio",
                 WallpaperSources.BuiltIn => "Included",
                 WallpaperSources.Local => "On this PC",
                 _ => "Web page",
@@ -113,6 +115,24 @@ public sealed partial class CardViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    /// <summary>AI creations can be reported (Microsoft Store 11.16): opens a pre-filled public issue in the browser.</summary>
+    public bool CanReport => Item.IsAiMade;
+
+    [RelayCommand]
+    private void Report()
+    {
+        string url = Wavelit.Core.Create.ContentReport.IssueUrl("other", null, Item.Title, Item.MadeWith ?? Item.Source, null,
+            typeof(CardViewModel).Assembly.GetName().Version?.ToString() ?? "dev");
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            Serilog.Log.Warning(ex, "Couldn't open the report page");
         }
     }
 

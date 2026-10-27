@@ -21,6 +21,12 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isPastingShader;
     [ObservableProperty] private string _shaderTitle = "";
     [ObservableProperty] private string _shaderCode = "";
+    [ObservableProperty] private Choice<string> _filter = Filters[0];
+
+    /// <summary>All / AI-made / Not AI (plan §21.6; Wallpaper Engine users have asked for this for years).</summary>
+    public static IReadOnlyList<Choice<string>> Filters { get; } = [new("Everything", "all"), new("Made with AI", "ai"), new("Not AI", "human")];
+
+    partial void OnFilterChanged(Choice<string> value) => Reload();
 
     public LibraryViewModel(DashboardContext context, WallpaperService wallpapers)
     {
@@ -113,6 +119,7 @@ public sealed partial class LibraryViewModel : ObservableObject, IDisposable
         Items.Clear();
         foreach (var item in Context.Library.All)
         {
+            if (Filter.Value == "ai" && !item.IsAiMade || Filter.Value == "human" && item.IsAiMade) continue;
             var card = new CardViewModel(new SearchResult(item), Context.ApplyAsync, Remove)
             {
                 IsActive = Context.IsShownAnywhere(item.Id),

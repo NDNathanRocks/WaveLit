@@ -35,3 +35,21 @@ html, body {
   object-fit: fill;
   opacity: 0;
 }
+
+/* Desktop widgets (widgets.js): over the wallpaper and overlay, under the icons. */
+.widgets {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.widget {
+  position: absolute;
+  white-space: pre;
+  font-kerning: normal;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}

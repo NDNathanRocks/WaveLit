@@ -87,7 +87,7 @@ public class InteractiveTests
     [Fact]
     public void Built_in_shaders_have_thumbnails_and_valid_moods()
     {
-        Assert.Equal(16, BuiltInShaders.Items.Count);
+        Assert.Equal(19, BuiltInShaders.Items.Count);
         string assets = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Wavelit.App", "Assets", "BuiltIn"));
         foreach (var item in BuiltInShaders.Items)
         {

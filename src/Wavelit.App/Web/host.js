@@ -14,6 +14,8 @@
   let framing = null;   // framing editor: { zoom, x, y } (centre as a fraction of the canvas), or automatic
   let current = null;
   let interactive = null;   // the interactive layer (interact.js) over whatever is showing
+  let widgets = null;       // desktop widgets (widgets.js) over everything
+  let widgetsKey = null;
   let paused = false;
 
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -424,8 +426,33 @@
       interactive = null;
     }
     if (!wanted || !window.WavelitInteractive) return;
-    interactive = window.WavelitInteractive.create(wanted, stage, timeline, getOptions, getView, getPixelSize);
+    try {
+      interactive = window.WavelitInteractive.create(wanted, stage, timeline, getOptions, getView, getPixelSize);
+    } catch (err) {
+      // An overlay that can't run (e.g. a Studio overlay this GPU rejects) never takes the wallpaper down with it.
+      interactive = null;
+      const failed = stage.querySelector('canvas.overlay');
+      if (failed) failed.remove();
+      post({ type: 'overlayError', message: describe(err) });
+      return;
+    }
     if (interactive && !paused) interactive.start();
+  }
+
+  // ---------------------------------------------------------------- desktop widgets
+
+  // Widgets show over any wallpaper (not on a blank window), and are rebuilt when they or the window change.
+  function syncWidgets(force) {
+    const list = current && options.widgets && Array.isArray(options.widgets.items) ? options.widgets.items : [];
+    const px = getPixelSize();
+    const k = px.width / Math.max(1, window.innerWidth);
+    const key = list.length ? JSON.stringify(list) + '|' + k : null;
+    if (!force && key === widgetsKey) return;
+    widgetsKey = key;
+    if (widgets) widgets.dispose();
+    widgets = null;
+    if (!list.length || !window.WavelitWidgets) return;
+    widgets = window.WavelitWidgets.render(list, document.body, k);
   }
 
   // ---------------------------------------------------------------- commands
@@ -441,11 +468,12 @@
     current = null;
     stage.replaceChildren();
     resetClock(0);
-    if (!next) return;
+    if (!next) { syncWidgets(true); return; }
     current = next;
     next.mount(stage);
     if (paused) next.pause();
     syncInteractive();
+    syncWidgets(true);
   }
 
   function setPaused(value) {
@@ -463,13 +491,16 @@
       switch (msg.type) {
         case 'options':
           options = Object.assign({}, options, msg.options || {});
+          if (window.WavelitAudio) window.WavelitAudio.configure(options.audio);
           if (current) current.applyOptions(options);
           syncInteractive();
+          syncWidgets(false);
           break;
         case 'resize':
           if (msg.width > 0 && msg.height > 0) pixelSize = { width: msg.width, height: msg.height };
           if (current) current.resize();
           if (interactive) interactive.resize();
+          syncWidgets(false);
           break;
         case 'view': {
           const c = msg.canvas, f = msg.focus;
@@ -520,6 +551,12 @@
           break;
         case 'pointer':
           if (window.WavelitPointer) window.WavelitPointer.update(msg);
+          break;
+        case 'audio':
+          if (window.WavelitAudio) window.WavelitAudio.update(msg);
+          break;
+        case 'params':   // Studio sliders, applied live
+          if (current && current.runtime && Array.isArray(msg.values)) current.runtime.setParams(msg.values.slice(0, 4));
           break;
         case 'stats':   // --frame-stats diagnostic: pacing of every running renderer
           post({ type: 'stats', items: window.WavelitFrameStats ? window.WavelitFrameStats() : [] });

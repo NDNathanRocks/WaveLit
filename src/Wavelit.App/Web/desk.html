@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'">
+  <title>Wavelit Desktop editor</title>
+  <link rel="stylesheet" href="host.css">
+  <link rel="stylesheet" href="desk.css">
+</head>
+<body>
+  <div id="board">
+    <div id="screen" class="hidden">
+      <img id="wallpaper" alt="">
+      <div id="taskbar"><span>Taskbar</span></div>
+      <div id="guides"></div>
+    </div>
+  </div>
+  <div id="hint">Drag to move · Ctrl + scroll to resize · arrow keys to nudge</div>
+  <script src="widgets.js"></script>
+  <script src="desk.js"></script>
+</body>
+</html>

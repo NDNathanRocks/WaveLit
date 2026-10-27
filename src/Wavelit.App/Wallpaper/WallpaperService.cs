@@ -36,6 +36,7 @@ public sealed class WallpaperService : IAsyncDisposable
     private UiThread? _thread;
     private ConditionsMonitor? _conditions;
     private PointerFeed? _pointer;
+    private AudioFeed? _audio;
     private CoreWebView2Environment? _environment;
     private DesktopLayer? _layer;
     private IReadOnlyList<MonitorInfo> _monitors = [];
@@ -88,16 +89,7 @@ public sealed class WallpaperService : IAsyncDisposable
         {
             try
             {
-                _environment = await CoreWebView2Environment.CreateAsync(null, _paths.WebView2, new CoreWebView2EnvironmentOptions
-                {
-                    // - autoplay: unmuted video may start without a click.
-                    // - HardwareMediaKeyHandling/MediaSessionService: media keys and the Windows media flyout
-                    //   must not pick up the wallpaper.
-                    // - CalculateNativeWinOcclusion: Chromium thinks a window under the desktop icons is
-                    //   hidden and stops painting it; Wavelit does its own occlusion handling.
-                    AdditionalBrowserArguments = "--autoplay-policy=no-user-gesture-required " +
-                        "--disable-features=HardwareMediaKeyHandling,MediaSessionService,CalculateNativeWinOcclusion",
-                });
+                _environment = await WebViewSetup.CreateEnvironmentAsync(_paths);
             }
             catch (WebView2RuntimeNotFoundException ex)
             {
@@ -108,6 +100,7 @@ public sealed class WallpaperService : IAsyncDisposable
 
             _conditions = new ConditionsMonitor(_thread!.Dispatcher, _logger);
             _pointer = new PointerFeed(_thread.Dispatcher, () => _hosts.Values.Select(e => (e.Host, e.IsSlice)));
+            _audio = new AudioFeed(_thread.Dispatcher, () => _hosts.Values.Select(e => e.Host), _logger);
             _conditions.Tick += (_, _) => OnTick();
             _settings.Changed += OnSettingsChanged;
             RequestSync();
@@ -133,12 +126,15 @@ public sealed class WallpaperService : IAsyncDisposable
     /// <summary>Reloads every window showing <paramref name="itemId"/> (e.g. after its effect changed).</summary>
     public void Reload(string itemId) => Post(() =>
     {
-        var options = RenderOptions.From(_settings.Current);
+        var options = Options(_settings.Current);
         foreach (var entry in _hosts.Values.Where(e => e.DesiredItemId == itemId))
             StartLoad(entry, options);
     });
 
     private void OnSettingsChanged(object? sender, AppSettings e) => Post(RequestSync);
+
+    private RenderOptions Options(AppSettings settings)
+        => RenderOptions.From(settings) with { MonitorIds = _monitors.Select(m => m.Id).ToList() };
 
     private void Post(Action action)
     {
@@ -206,7 +202,7 @@ public sealed class WallpaperService : IAsyncDisposable
             _hosts.Remove(key);
         }
 
-        var options = RenderOptions.From(settings);
+        var options = Options(settings);
         foreach (var spec in desired)
         {
             if (!_hosts.TryGetValue(spec.Key, out var entry))
@@ -260,6 +256,15 @@ public sealed class WallpaperService : IAsyncDisposable
         _pointer.ClickBursts = _settings.Current.Interactive.ClickBursts;
         _pointer.Enabled = !_disposed && !_userPaused
             && _hosts.Values.Any(e => e.Decision.State == PlaybackState.Playing && e.Host.NeedsPointer);
+        UpdateAudioFeed();
+    }
+
+    /// <summary>Audio capture follows the same rule as the cursor: only while a Playing wallpaper listens.</summary>
+    private void UpdateAudioFeed()
+    {
+        if (_audio is null) return;
+        _audio.Enabled = !_disposed && !_userPaused
+            && _hosts.Values.Any(e => e.Decision.State == PlaybackState.Playing && e.Host.NeedsAudio);
     }
 
     private sealed record HostSpec(string Key, IReadOnlyList<MonitorInfo> Monitors, RECT Bounds, string? ItemId,
@@ -400,7 +405,7 @@ public sealed class WallpaperService : IAsyncDisposable
         Error?.Invoke(this, message);
         // Renderer process restarts: reload what should be shown.
         if (entry.Host.LoadedItemId is null && entry.DesiredItemId is not null)
-            StartLoad(entry, RenderOptions.From(_settings.Current));
+            StartLoad(entry, Options(_settings.Current));
         Publish(desktopAvailable: true);
     }
 
@@ -554,6 +559,42 @@ public sealed class WallpaperService : IAsyncDisposable
         });
     }
 
+    /// <summary>
+    /// What one monitor shows right now (the Desktop editor's background), cropped from whichever window covers
+    /// it. Null when nothing visible is there (no wallpaper, or the window is suspended behind a maximized app).
+    /// </summary>
+    public async Task<BitmapSource?> CaptureMonitorAsync(string monitorId)
+    {
+        if (_thread is null) return null;
+        BitmapSource? result = null;
+        await _thread.InvokeAsync(async () =>
+        {
+            var entry = _hosts.Values.FirstOrDefault(e => e.Host.Monitors.Any(m => m.Id == monitorId));
+            var monitor = entry?.Host.Monitors.First(m => m.Id == monitorId);
+            if (entry is null || monitor is null || entry.Host.LoadedItemId is null || entry.Decision.State == PlaybackState.Suspended) return;
+            try
+            {
+                var frame = await entry.Host.CaptureFrameAsync();
+                if (frame is null) return;
+                var b = entry.Host.Bounds;
+                double kx = frame.PixelWidth / (double)Math.Max(1, b.Width), ky = frame.PixelHeight / (double)Math.Max(1, b.Height);
+                var crop = new System.Windows.Int32Rect(
+                    (int)Math.Round((monitor.Bounds.Left - b.Left) * kx), (int)Math.Round((monitor.Bounds.Top - b.Top) * ky),
+                    (int)Math.Round(monitor.Bounds.Width * kx), (int)Math.Round(monitor.Bounds.Height * ky));
+                if (crop.X < 0 || crop.Y < 0 || crop.Width <= 0 || crop.Height <= 0
+                    || crop.X + crop.Width > frame.PixelWidth || crop.Y + crop.Height > frame.PixelHeight) { result = frame; return; }
+                var cropped = new CroppedBitmap(frame, crop);
+                cropped.Freeze();
+                result = cropped;
+            }
+            catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException or NotSupportedException)
+            {
+                _logger.LogDebug(ex, "Capture of monitor {Monitor} failed", monitorId);
+            }
+        });
+        return result;
+    }
+
     /// <summary>All WebView2 process ids (as of the last state change), for diagnostics.</summary>
     public IReadOnlyList<int> BrowserProcessIds => _browserProcessIds;
 
@@ -575,6 +616,7 @@ public sealed class WallpaperService : IAsyncDisposable
             {
                 _disposed = true;
                 _pointer?.Dispose();
+                _audio?.Dispose();
                 _conditions?.Dispose();
                 DisposeAllHosts();
                 if (_ecoQos) EcoQos.Set(false);

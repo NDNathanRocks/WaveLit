@@ -189,6 +189,9 @@
                             <ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Open24}" ToolTip="Open source page"
                                        Command="{Binding OpenPageCommand}" Foreground="White"
                                        Visibility="{Binding HasPage, Converter={StaticResource BoolToVisibility}}" />
+                            <ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Flag24}" ToolTip="Report this AI creation"
+                                       Command="{Binding ReportCommand}" Foreground="White"
+                                       Visibility="{Binding CanReport, Converter={StaticResource BoolToVisibility}}" />
                             <ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Delete24}" ToolTip="Remove from library"
                                        Command="{Binding RemoveCommand}" Foreground="White"
                                        Visibility="{Binding CanRemove, Converter={StaticResource BoolToVisibility}}" />

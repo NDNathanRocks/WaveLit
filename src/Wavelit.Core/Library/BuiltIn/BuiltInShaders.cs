@@ -533,6 +533,223 @@ public static class BuiltInShaders
         }
         """;
 
+    // ---------------------------------------------------------------- audio visualizers (plan §20.3)
+
+    // Band lookups: 64 bands packed in 16 vec4s (see Web/audio.js), linearly interpolated.
+    private const string AudioLib = """
+        float specAt(int i) { i = clamp(i, 0, 63); return iSpectrum[i / 4][i % 4]; }
+        float peakAt(int i) { i = clamp(i, 0, 63); return iPeaks[i / 4][i % 4]; }
+        float spec(float i) { i = clamp(i, 0.0, 63.0); int a = int(i); return mix(specAt(a), specAt(a + 1), fract(i)); }
+        float peak(float i) { i = clamp(i, 0.0, 63.0); int a = int(i); return mix(peakAt(a), peakAt(a + 1), fract(i)); }
+        // A smooth forward surge on every beat that never runs backwards (count + eased progress).
+        float beatTravel(float amount) { return amount * (iBeat.w - 1.0 + smoothstep(0.0, 0.35, iBeat.y)) * step(0.5, iBeat.w); }
+        """;
+
+    // Synthwave Drive: the sun's stripes breathe with the bass, the grid surges forward on each beat,
+    // the horizon mountains are the live spectrum (mirrored, bass in the middle), stars twinkle on the treble.
+    private const string SynthwaveDrive = Noise + AudioLib + """
+
+        void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+            vec2 uv = (fragCoord - iFocus.xy) / iFocus.z;
+            float bass = iAudio.x, treble = iAudio.z, level = iAudio.w, pulse = iBeat.x;
+            const float horizon = -0.06;
+            float travel = iTime * 0.45 + beatTravel(0.18);
+            vec3 col;
+            if (uv.y > horizon) {
+                float h = uv.y - horizon;
+                col = mix(vec3(0.80, 0.20, 0.47), vec3(0.035, 0.015, 0.12), smoothstep(0.0, 0.6, h));
+                col += stars(fragCoord, 170.0, iTime * (1.0 + treble * 4.0)) * (0.35 + treble * 1.4) * smoothstep(0.2, 0.55, h);
+
+                vec2 sc = uv - vec2(0.0, 0.17);
+                float d = length(sc);
+                float radius = 0.24 + 0.008 * pulse;
+                float disc = smoothstep(radius, radius - 0.004, d);
+                float bandWidth = smoothstep(0.03, -0.22, sc.y) * (0.42 + 0.4 * bass);
+                float gaps = step(fract(sc.y * 24.0 - iTime * 0.12), bandWidth);
+                vec3 sun = mix(vec3(1.0, 0.86, 0.32), vec3(1.0, 0.18, 0.52), smoothstep(0.22, -0.22, sc.y));
+                col = mix(col, sun, disc * (1.0 - gaps));
+                col += vec3(1.0, 0.3, 0.55) * (0.2 + 0.22 * pulse + 0.1 * level) * exp(-d * 4.5);
+
+                // Mountains: a quiet range that the music lifts, bass in the middle, treble at the sides.
+                float ax = abs(uv.x);
+                float range = 0.025 + 0.06 * fbm(vec2(ax * 2.6 + 3.1, 1.7)) * smoothstep(0.05, 0.6, ax);
+                float lift = spec(ax * 36.0) * 0.15 * (0.25 + 0.75 * smoothstep(0.06, 0.4, ax));
+                float ridge = range + lift;
+                if (h < ridge) {
+                    float shade = smoothstep(0.0, ridge, h);
+                    col = mix(vec3(0.03, 0.005, 0.07), vec3(0.11, 0.02, 0.2), shade);
+                }
+                float edge = exp(-abs(h - ridge) * 260.0);
+                vec3 neon = mix(vec3(1.0, 0.25, 0.75), vec3(0.2, 0.9, 1.0), smoothstep(0.1, 0.9, ax));
+                col += neon * edge * (0.35 + 1.1 * lift / 0.15);
+            } else {
+                float depth = 0.11 / (horizon - uv.y + 0.0005);
+                vec2 g = vec2(uv.x * depth * 2.2, depth + travel);
+                vec2 fw = fwidth(g);
+                vec2 a = abs(fract(g) - 0.5) / max(fw, vec2(1e-4));
+                float line = 1.0 - min(min(a.x, a.y) * 0.6, 1.0);
+                float fade = exp(-depth * 0.08);
+                col = vec3(0.03, 0.0, 0.08) + vec3(1.0, 0.18, 0.75) * line * fade * (0.75 + 0.5 * level);
+                col += vec3(0.9, 0.2, 0.6) * exp(-(horizon - uv.y) * 18.0) * (0.45 + 0.3 * pulse);
+            }
+            fragColor = vec4(pow(col, vec3(0.95)), 1.0);
+        }
+        """;
+
+    // Neon Bars: 48 rounded bars on a reflective neon floor, magenta to cyan, falling peak caps, a wet
+    // reflection that ripples on the beat, and a dim striped sun behind. Laid out on the primary display;
+    // the floor and sky continue across the others.
+    private const string NeonBars = AudioLib + """
+
+        float h11(float n) { return fract(sin(n * 12.9898) * 43758.5453); }
+        float box(vec2 q, vec2 b, float r) { vec2 d = abs(q) - b + r; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r; }
+
+        void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+            vec2 p = (fragCoord - iFocus.xy) / iFocus.z;
+            float pulse = iBeat.x;
+            const float base = -0.2;
+            const float span = 1.44;
+            const float w = span / 48.0;
+            const float tall = 0.56;
+
+            vec3 col = mix(vec3(0.015, 0.0, 0.05), vec3(0.09, 0.02, 0.17), smoothstep(-0.2, 0.6, p.y));
+            // The sun behind the bars, striped and dim so the bars stay the subject.
+            vec2 sc = p - vec2(0.0, 0.16);
+            float d = length(sc);
+            float stripes = step(fract(sc.y * 22.0 - iTime * 0.1), smoothstep(0.05, -0.25, sc.y) * 0.5);
+            vec3 sun = mix(vec3(1.0, 0.7, 0.3), vec3(1.0, 0.2, 0.55), smoothstep(0.25, -0.25, sc.y));
+            col = mix(col, sun * 0.55, smoothstep(0.3, 0.296, d) * (1.0 - stripes) * step(base, p.y));
+            col += vec3(0.9, 0.25, 0.6) * (0.1 + 0.12 * pulse) * exp(-d * 4.0);
+
+            bool below = p.y < base;
+            float y = below ? 2.0 * base - p.y : p.y;
+            float x = p.x;
+            if (below) x += sin(p.y * 70.0 - iBeat.y * 14.0) * 0.006 * pulse;
+
+            vec3 bars = vec3(0.0);
+            float fi = floor((x + span * 0.5) / w);
+            for (int k = -2; k <= 2; k++) {
+                float i = fi + float(k);
+                if (i < 0.0 || i > 47.0) continue;
+                float band = 2.0 + i * 56.0 / 47.0;
+                float idle = 0.025 + 0.02 * sin(iTime * 1.1 + i * 0.37);
+                float v = max(spec(band), idle * (1.0 - iAudioPresence * 0.7));
+                float hgt = 0.015 + v * tall;
+                float cx = -span * 0.5 + (i + 0.5) * w;
+                float bd = box(vec2(x - cx, y - base - hgt * 0.5), vec2(w * 0.34, hgt * 0.5), 0.003);
+                vec3 tint = mix(vec3(1.0, 0.16, 0.72), vec3(0.12, 0.85, 1.0), i / 47.0);
+                float body = smoothstep(0.0015, -0.0015, bd) * (0.55 + 0.45 * clamp((y - base) / max(hgt, 1e-3), 0.0, 1.0));
+                bars += tint * (body + exp(-max(bd, 0.0) * 90.0) * 0.22 * (0.35 + v));
+                float pk = max(peak(band), v);
+                float cap = box(vec2(x - cx, y - base - 0.024 - pk * tall), vec2(w * 0.34, 0.0028), 0.002);
+                bars += mix(tint, vec3(1.0), 0.55) * (smoothstep(0.0015, -0.0015, cap) * 0.9 + exp(-max(cap, 0.0) * 160.0) * 0.15);
+            }
+            if (below) {
+                float depth = base - p.y;
+                bars *= 0.32 * exp(-depth * 4.5);
+                // The floor: a perspective neon grid fading into the distance.
+                float z = 0.08 / (depth + 0.004);
+                vec2 g = vec2(p.x * z * 2.0, z + iTime * 0.25);
+                vec2 fw = fwidth(g);
+                vec2 a = abs(fract(g) - 0.5) / max(fw, vec2(1e-4));
+                float line = 1.0 - min(min(a.x, a.y) * 0.7, 1.0);
+                col = mix(col, vec3(0.02, 0.0, 0.05), 0.6) + vec3(0.7, 0.15, 0.9) * line * exp(-z * 0.12) * 0.55;
+                col += vec3(0.9, 0.25, 0.7) * exp(-depth * 30.0) * (0.25 + 0.25 * pulse);
+            }
+            col += bars;
+            col = col / (1.0 + col * 0.35);
+            fragColor = vec4(pow(col, vec3(0.92)), 1.0);
+        }
+        """;
+
+    // Resonant Stardust: dust in deep space that buzzes with the treble, is pushed by a soft shockwave on
+    // each kick, glows with loudness (warm for bass-heavy music, silvery for bright music) and, on sustained
+    // notes, gathers onto the nodal lines of a Chladni plate whose figure follows the pitch. Stateless: each
+    // mote moves a bounded distance (< one grid cell) from its home, so a 3×3 search always finds it.
+    internal const string ResonanceLib = """
+        float rsHash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
+        // Sustained, tonal music gathers the dust; drums and silence let it drift.
+        float rsGather() { return iAudioPresence * smoothstep(0.1, 0.32, iAudio.y * 0.8 + iAudio.z * 0.4) * (1.0 - 0.5 * iBeat.x); }
+        vec3 rsTint(float brightness) { return mix(vec3(1.0, 0.7, 0.42), vec3(0.72, 0.84, 1.0), smoothstep(0.3, 0.65, brightness)); }
+
+        // Chladni plate f = cos(nπx)cos(mπy) − cos(mπx)cos(nπy) and its gradient (analytic, plate units).
+        vec3 rsPlate(vec2 q, float n, float m) {
+            const float PI = 3.14159265;
+            float a = n * PI, b = m * PI;
+            float cax = cos(a * q.x), sax = sin(a * q.x), cbx = cos(b * q.x), sbx = sin(b * q.x);
+            float cay = cos(a * q.y), say = sin(a * q.y), cby = cos(b * q.y), sby = sin(b * q.y);
+            float f = cax * cby - cbx * cay;
+            vec2 g = vec2(-a * sax * cby + b * sbx * cay, -b * cax * sby + a * cbx * say);
+            return vec3(f, g);
+        }
+
+        // Brightness of the dust at p (focus units). centre = where shockwaves start.
+        float rsDust(vec2 p, vec2 centre, float sizeScale, float density, float t) {
+            float treble = iAudio.z, level = iAudio.w, pres = iAudioPresence;
+            float since = iBeat.y;
+            float ring = since * 0.85;
+            float ringAmp = pres * exp(-since * 2.4) * step(since, 3.0);
+            float gather = rsGather();
+            float n = 2.0 + iCentroid * 5.0, m = n + 1.35;
+            float a = 0.0;
+            for (int layer = 0; layer < 2; layer++) {
+                float scale = layer == 0 ? 44.0 : 26.0;
+                float seed = float(layer) * 31.7;
+                vec2 id0 = floor(p * scale);
+                for (int j = -1; j <= 1; j++) {
+                    for (int i = -1; i <= 1; i++) {
+                        vec2 id = id0 + vec2(float(i), float(j));
+                        float h = rsHash(id + seed);
+                        if (h > density) continue;
+                        vec2 pos = (id + 0.5 + (vec2(rsHash(id + seed + 7.3), rsHash(id + seed + 1.9)) - 0.5) * 0.78) / scale;
+                        pos += 0.14 / scale * vec2(sin(t * 0.31 + h * 20.0), cos(t * 0.27 + h * 13.0));
+                        // Buzz: treble shakes every mote in place, each with its own phase.
+                        pos += treble * treble * 0.12 / scale * vec2(sin(t * 37.0 + h * 91.0), cos(t * 31.0 + h * 57.0));
+                        // Shockwave from the kick, then the dust settles back.
+                        vec2 rel = pos - centre;
+                        float r = length(rel);
+                        pos += (r > 1e-5 ? rel / r : vec2(0.0)) * ringAmp * 0.45 / scale * exp(-pow((r - ring) / 0.07, 2.0));
+                        // Cymatics: a bounded Newton step towards the plate's nodal line.
+                        float near = 1.0;
+                        if (gather > 0.01) {
+                            vec3 pl = rsPlate(pos / 0.6, n, m);
+                            vec2 grad = pl.yz / 0.6;
+                            vec2 stepv = -pl.x * grad / max(dot(grad, grad), 1e-3);
+                            float len = length(stepv), lim = 0.32 / scale;
+                            pos += (len > lim ? stepv * lim / len : stepv) * gather;
+                            near = mix(1.0, 0.18 + 1.5 * exp(-abs(pl.x) * 7.0), gather);
+                        }
+                        float d = length(p - pos);
+                        float rad = (layer == 0 ? 0.0024 : 0.0036) * sizeScale * (1.0 + 0.5 * level);
+                        float twinkle = 0.6 + 0.4 * sin(t * (0.7 + h * 1.9) + h * 40.0);
+                        a += (smoothstep(rad, 0.0, d) + exp(-d * d / (rad * rad * 6.0)) * 0.25 * (0.3 + level)) * near * twinkle * (layer == 0 ? 1.0 : 0.6);
+                    }
+                }
+            }
+            return a;
+        }
+        """;
+
+    private const string ResonantStardust = Noise + ResonanceLib + """
+
+        void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+            vec2 p = focusSpace(fragCoord);
+            float level = iAudio.w;
+            vec3 tint = rsTint(iCentroid);
+            vec3 col = mix(vec3(0.006, 0.006, 0.02), vec3(0.025, 0.02, 0.06), clamp(p.y + 0.6, 0.0, 1.0));
+            float neb = fbm(p * 1.6 + vec2(iTime * 0.01, 0.0));
+            col += tint * pow(neb, 3.0) * (0.12 + 0.18 * level);
+            col += stars(fragCoord, 220.0, iTime) * 0.35;
+            float dust = rsDust(p, vec2(0.0), 1.1, 0.7, iTime);
+            col += tint * dust * (0.9 + 0.7 * level + 0.25 * iBeat.x);
+            // The figure itself glows faintly, like sand catching the light along the plate's still lines.
+            float n = 2.0 + iCentroid * 5.0;
+            col += tint * rsGather() * exp(-abs(rsPlate(p / 0.6, n, n + 1.35).x) * 10.0) * 0.06;
+            col = 1.0 - exp(-col * 1.3);
+            fragColor = vec4(col, 1.0);
+        }
+        """;
+
     /// <summary>Mood is the Discover chip the shader also appears under (see <c>Moods</c>).</summary>
     private static readonly (string Key, string Title, string Mood, string Code)[] Definitions =
     [
@@ -552,7 +769,13 @@ public static class BuiltInShaders
         ("topo", "Topographic", "minimal", Topographic),
         ("skyline", "Night Skyline", "neon", NightSkyline),
         ("moonlake", "Moonlit Lake", "cozy", MoonlitLake),
+        ("synthdrive", "Synthwave Drive", "neon", SynthwaveDrive),
+        ("neonbars", "Neon Bars", "neon", NeonBars),
+        ("resonance", "Resonant Stardust", "space", ResonantStardust),
     ];
+
+    /// <summary>Built-ins that react to the music (labelled "Music" in the gallery).</summary>
+    public static readonly IReadOnlyList<string> AudioKeys = ["synthdrive", "neonbars", "resonance"];
 
     public const string DefaultItemId = "builtin-aurora";
 
@@ -571,6 +794,9 @@ public static class BuiltInShaders
     public static WallpaperItem? Find(string id) => Items.FirstOrDefault(i => i.Id == id);
 
     public static string? MoodOf(string itemId) => Definitions.FirstOrDefault(d => "builtin-" + d.Key == itemId).Mood;
+
+    /// <summary>GLSL of a built-in (the Studio's examples and the lint tests).</summary>
+    public static string? Source(string key) => Definitions.FirstOrDefault(d => d.Key == key).Code;
 
     public static ShaderProgram? Program(string key)
     {

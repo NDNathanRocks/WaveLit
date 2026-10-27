@@ -90,6 +90,12 @@ public sealed class LibraryActions(
             try { File.Delete(item.FilePath); }
             catch (IOException ex) { logger.LogDebug(ex, "Could not delete creation"); }
         }
+        if (item.Source == WallpaperSources.GeneratedShader && item.ThumbnailPath is not null
+            && Path.GetFullPath(item.ThumbnailPath).StartsWith(paths.Creations + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            try { File.Delete(item.ThumbnailPath); }
+            catch (IOException ex) { logger.LogDebug(ex, "Could not delete creation thumbnail"); }
+        }
         try { File.Delete(WallpaperService.CapturedThumbnailPath(paths, item.Id)); }
         catch (IOException) { }
     }

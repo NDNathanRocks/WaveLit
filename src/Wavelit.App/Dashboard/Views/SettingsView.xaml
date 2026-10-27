@@ -98,14 +98,47 @@
                 </StackPanel>
             </ui:CardExpander>
 
-            <!-- Create -->
-            <TextBlock Text="Create (AI wallpapers)" Style="{StaticResource SectionHeader}" />
+            <!-- Studio -->
+            <TextBlock Text="Studio (AI wallpapers)" Style="{StaticResource SectionHeader}" />
+            <ui:CardExpander Icon="{ui:SymbolIcon Code24}" IsExpanded="False" Margin="0,0,0,4">
+                <ui:CardExpander.Header>
+                    <StackPanel>
+                        <TextBlock Text="Claude for live wallpapers and overlays (optional)" FontWeight="SemiBold" />
+                        <TextBlock Text="The best AI-written shaders, with your own Anthropic API key. You pay Anthropic per creation; Wavelit adds nothing." Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ui:CardExpander.Header>
+                <StackPanel>
+                    <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,8" TextWrapping="Wrap">
+                        1. Create a key at
+                        <Hyperlink Command="{Binding OpenLinkCommand}" CommandParameter="https://console.anthropic.com/settings/keys">console.anthropic.com</Hyperlink>
+                        (it needs some credit on the account).
+                        2. Paste it here. It's encrypted on this PC and only ever sent to Anthropic.
+                        Each creation costs roughly 5 to 25 US cents with Opus, less with Sonnet or Haiku.
+                    </TextBlock>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <ui:PasswordBox Password="{Binding AnthropicKey, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                        PlaceholderText="sk-ant-…" AutomationProperties.Name="Anthropic API key" />
+                        <ui:Button Grid.Column="1" Margin="8,0,0,0" Appearance="Primary" Content="Save &amp; test"
+                                   Command="{Binding SaveAnthropicKeyCommand}" />
+                    </Grid>
+                    <TextBlock Margin="0,6,0,10" Text="{Binding AnthropicStatus}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                    <TextBlock Text="Model" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                    <ComboBox Width="300" HorizontalAlignment="Left" ItemsSource="{Binding StudioModels}" SelectedItem="{Binding SelectedStudioModel}"
+                              DisplayMemberPath="Label" AutomationProperties.Name="Claude model" />
+                    <TextBlock Margin="0,8,0,0" Style="{StaticResource Caption}" TextWrapping="Wrap"
+                               Text="No key? The Studio also works free with Cloudflare (below), or with any AI chat you already use: it gives you a prompt to copy." />
+                </StackPanel>
+            </ui:CardExpander>
             <ContentControl Content="{Binding LocalAi}" Focusable="False" Margin="0,0,0,4" />
             <ui:CardExpander Icon="{ui:SymbolIcon Cloud24}" IsExpanded="False" Margin="0,0,0,4">
                 <ui:CardExpander.Header>
                     <StackPanel>
                         <TextBlock Text="Cloudflare Workers AI (optional)" FontWeight="SemiBold" />
-                        <TextBlock Text="A second free cloud generator with a daily allowance, using your own account." Style="{StaticResource Caption}" />
+                        <TextBlock Text="Free daily allowance on your own account, for pictures and (simpler) live wallpapers." Style="{StaticResource Caption}" />
                     </StackPanel>
                 </ui:CardExpander.Header>
                 <StackPanel>
@@ -230,6 +263,16 @@
 
             <!-- Quality -->
             <TextBlock Text="Quality" Style="{StaticResource SectionHeader}" />
+            <ui:CardControl Icon="{ui:SymbolIcon Options24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Preset" FontWeight="SemiBold" />
+                        <TextBlock Text="Motion and resolution together. Wavelit picked one for your graphics on first start; it also eases resolution down by itself if frames start to drop, and back up when they recover."
+                                   Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ComboBox MinWidth="300" ItemsSource="{Binding PresetChoices}" SelectedItem="{Binding SelectedPreset}" DisplayMemberPath="Label" AutomationProperties.Name="Quality preset" />
+            </ui:CardControl>
             <ui:CardControl Icon="{ui:SymbolIcon TopSpeed24}" Margin="0,0,0,4">
                 <ui:CardControl.Header>
                     <StackPanel>
@@ -281,6 +324,36 @@
             </ui:CardControl>
 
             <!-- General -->
+            <TextBlock Text="Music" Style="{StaticResource SectionHeader}" />
+            <ui:CardControl Icon="{ui:SymbolIcon MusicNote224}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Visualizers listen to your music" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                   Text="Music wallpapers and overlays follow what your PC plays (never the microphone), only while they're visible. Nothing is recorded, stored or sent. Off: they show their calm idle animation." />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding AudioEnabled}" AutomationProperties.Name="Visualizers listen to your music" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Speaker224}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Sensitivity" FontWeight="SemiBold" />
+                        <TextBlock Text="How strongly visualizers react. The middle is usually right; Wavelit already adjusts to loud and quiet music." Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <Slider Width="220" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True" Value="{Binding AudioSensitivity, Delay=200}" AutomationProperties.Name="Sensitivity" />
+            </ui:CardControl>
+            <ui:CardControl Icon="{ui:SymbolIcon Eye24}" Margin="0,0,0,4">
+                <ui:CardControl.Header>
+                    <StackPanel>
+                        <TextBlock Text="Reduce flashing" FontWeight="SemiBold" />
+                        <TextBlock Text="Keeps beat effects soft and under three a second. Recommended, especially if bright flashes bother you." Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ui:CardControl.Header>
+                <ui:ToggleSwitch IsChecked="{Binding ReduceFlashing}" AutomationProperties.Name="Reduce flashing" />
+            </ui:CardControl>
+
             <TextBlock Text="General" Style="{StaticResource SectionHeader}" />
             <ui:CardControl Icon="{ui:SymbolIcon Rocket24}" Margin="0,0,0,4">
                 <ui:CardControl.Header>

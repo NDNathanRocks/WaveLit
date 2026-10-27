@@ -11,6 +11,7 @@ using Wavelit.App.Services;
 using Wavelit.App.Tray;
 using Wavelit.App.Wallpaper;
 using Wavelit.Core.Create;
+using Wavelit.Core.Create.Shaders;
 using Wavelit.Core.Desktop;
 using Wavelit.Core.Diagnostics;
 using Wavelit.Core.Library;
@@ -24,7 +25,7 @@ namespace Wavelit.App;
 
 public partial class App : Application
 {
-    private const string UserAgent = "Wavelit/0.1 (+https://github.com/wavelit)";
+    private const string UserAgent = "Wavelit/0.1 (+https://github.com/NDNathanRocks/WaveLit)";
     private SingleInstance? _singleInstance;
     private ServiceProvider? _services;
     private TrayService? _tray;
@@ -73,9 +74,12 @@ public partial class App : Application
         bool firstRun = !settings.Current.FirstRunCompleted;
         if (firstRun)
         {
-            // Something beautiful immediately, no keys required.
+            // Something beautiful immediately, no keys required, at a quality that suits this PC's graphics.
+            var preset = QualityPresets.ForGpu(Wavelit.Core.Create.GpuProbe.Best()?.DedicatedVideoMemory ?? 0);
             settings.Update(s => s with
             {
+                ShaderFpsCap = preset.Fps,
+                ShaderRenderScale = preset.Scale,
                 FirstRunCompleted = true,
                 Displays = new DisplayAssignments { SharedItemId = BuiltInShaders.DefaultItemId },
             });
@@ -87,6 +91,7 @@ public partial class App : Application
         _tray = new TrayService(wallpapers, _services.GetRequiredService<LibraryStore>(), OpenDashboard, () => _ = QuitAsync());
         wallpapers.Error += (_, message) => _tray.Notify("Wavelit", message);
         if (!e.Args.Contains("--no-wallpaper")) await wallpapers.StartAsync(); // --no-wallpaper: dashboard-only diagnostics
+        _services.GetRequiredService<TaskbarService>().Start();
 
         _singleInstance.Listen(command => Dispatcher.BeginInvoke(() =>
         {
@@ -137,8 +142,13 @@ public partial class App : Application
         services.AddSingleton<PollinationsGenerator>();
         services.AddSingleton<CloudflareGenerator>();
         services.AddSingleton<CreateService>();
+        services.AddSingleton(sp => new ClaudeShaderAuthor(sp.GetRequiredService<SecretStore>(), () => sp.GetRequiredService<SettingsStore>().Current.StudioModel));
+        services.AddSingleton<CloudflareShaderAuthor>();
+        services.AddSingleton<StudioHistory>();
+        services.AddSingleton<ShaderStudioServices>();
         services.AddSingleton<SetupMemoryService>();
         services.AddSingleton<DayNightService>();
+        services.AddSingleton<TaskbarService>();
 
         // Dashboard view models are created per window and disposed by the window when it closes.
         // A factory (rather than a transient registration) keeps the container from also tracking and
@@ -151,14 +161,17 @@ public partial class App : Application
             var localAi = sp.GetRequiredService<LocalAiService>();
             return new MainViewModel(ctx,
                 new DiscoverViewModel(ctx, sp.GetServices<IWallpaperSource>(), sp.GetRequiredService<ShadertoyClient>(), sp.GetRequiredService<CreateService>()),
-                new CreateViewModel(ctx, sp.GetRequiredService<CreateService>(), new LocalAiViewModel(localAi, paths), sp.GetRequiredService<SecretStore>()),
+                new StudioViewModel(ctx,
+                    new CreateViewModel(ctx, sp.GetRequiredService<CreateService>(), new LocalAiViewModel(localAi, paths), sp.GetRequiredService<SecretStore>()),
+                    sp.GetRequiredService<ShaderStudioServices>()),
                 new LibraryViewModel(ctx, wallpapers),
                 new DisplaysViewModel(ctx, wallpapers),
-                new OverlaysViewModel(ctx),
+                new OverlaysViewModel(ctx, paths),
+                new DesktopViewModel(ctx, sp.GetRequiredService<TaskbarService>(), paths),
                 new SettingsViewModel(ctx, sp.GetRequiredService<SecretStore>(), sp.GetRequiredService<PexelsClient>(),
                     sp.GetRequiredService<ShadertoyClient>(), sp.GetRequiredService<MediaCache>(), paths,
                     sp.GetServices<IWallpaperSource>().OfType<PixabaySource>().Single(), sp.GetRequiredService<IHttpClientFactory>(),
-                    new LocalAiViewModel(localAi, paths)),
+                    new LocalAiViewModel(localAi, paths), sp.GetRequiredService<ClaudeShaderAuthor>()),
                 new AboutViewModel(wallpapers),
                 wallpapers);
         });
