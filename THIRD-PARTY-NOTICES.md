@@ -11,6 +11,7 @@ third-party components, each under its own licence.
 | ONNX Runtime (`Microsoft.ML.OnnxRuntime.DirectML`) | MIT, © Microsoft Corporation |
 | DirectML (`Microsoft.AI.DirectML`) | Microsoft DirectML License (redistributable) |
 | WPF-UI, H.NotifyIcon, CommunityToolkit.Mvvm, VirtualizingWrapPanel | MIT |
+| NAudio.Wasapi / NAudio.Core (audio loopback for music visualizers) | MIT, © Mark Heath and contributors |
 | Serilog, Microsoft.Extensions.* | Apache-2.0 / MIT |
 | **Real-ESRGAN x4 (compact) model**, `src/Wavelit.Create/Models/realesrgan-x4` | BSD 3-Clause, see below |
 

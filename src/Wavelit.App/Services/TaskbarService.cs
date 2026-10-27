@@ -24,7 +24,43 @@ public sealed class TaskbarService : IDisposable
     {
         _settings = settings;
         _logger = logger;
+        _paths = paths;
         _controller = new TaskbarController(new WindowsTaskbar(), Path.Combine(paths.Root, "taskbar-original.json"));
+    }
+
+    private readonly AppPaths _paths;
+
+    /// <summary>TranslucentTB, found fresh each time (it can be installed or removed while Wavelit runs).</summary>
+    public TranslucentTb TranslucentTb => new(
+        TranslucentTb.FindSettings(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)),
+        Path.Combine(_paths.Root, "translucenttb-original.json"));
+
+    public static bool TranslucentTbRunning
+    {
+        get
+        {
+            var running = System.Diagnostics.Process.GetProcessesByName("TranslucentTB");
+            foreach (var p in running) p.Dispose();
+            return running.Length > 0;
+        }
+    }
+
+    /// <summary>Starts TranslucentTB (Store build) through its package's app id; false if it couldn't.</summary>
+    public bool StartTranslucentTb()
+    {
+        string? settings = TranslucentTb.FindSettings(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+        if (settings is null) return false;
+        string family = Path.GetFileName(Path.GetDirectoryName(Path.GetDirectoryName(settings))!);
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo($"shell:AppsFolder\\{family}!TranslucentTB") { UseShellExecute = true })?.Dispose();
+            return true;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            _logger.LogWarning(ex, "Couldn't start TranslucentTB");
+            return false;
+        }
     }
 
     /// <summary>The last error shown on the Desktop page (null = fine).</summary>

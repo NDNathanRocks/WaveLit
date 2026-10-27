@@ -21,6 +21,9 @@ internal sealed class ConditionsMonitor : IDisposable
     private const uint EVENT_SYSTEM_MINIMIZESTART = 0x0016;
     private const uint EVENT_SYSTEM_MINIMIZEEND = 0x0017;
     private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
+    private const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
+    private const int OBJID_WINDOW = 0;
+    private const uint GA_ROOT = 2;
     private const int WM_POWERBROADCAST = 0x0218;
     private const int PBT_POWERSETTINGCHANGE = 0x8013;
     private static Guid GuidConsoleDisplayState = new("6FE69556-704A-47A0-8F24-C28D936FDA47");
@@ -29,6 +32,10 @@ internal sealed class ConditionsMonitor : IDisposable
     private readonly ILogger _logger;
     private readonly DispatcherTimer _poll;
     private readonly DispatcherTimer _debounce;
+    private readonly DispatcherTimer _fast;
+    private readonly NativeMethods.WinEventProc _locationProc;
+    private nint _locationHook;
+    private long _lastFastTick;   // Environment.TickCount64 of the last fast evaluation
     private readonly NativeMethods.WinEventProc _winEventProc; // must stay referenced while hooked
     private readonly List<nint> _hooks = [];
     private readonly HwndSource _messageWindow;
@@ -48,6 +55,14 @@ internal sealed class ConditionsMonitor : IDisposable
             _debounce.Stop();
             Tick?.Invoke(this, EventArgs.Empty);
         };
+
+        _fast = new DispatcherTimer(DispatcherPriority.Input, dispatcher) { Interval = TimeSpan.FromMilliseconds(16) };
+        _fast.Tick += (_, _) =>
+        {
+            _fast.Stop();
+            Tick?.Invoke(this, EventArgs.Empty);
+        };
+        _locationProc = OnLocationChange;
 
         _winEventProc = (_, _, _, _, _, _, _) => RequestEvaluation();
         foreach (var (min, max) in new[] { (EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND), (EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZEEND), (EVENT_SYSTEM_MINIMIZESTART, EVENT_SYSTEM_MINIMIZEEND) })
@@ -94,6 +109,49 @@ internal sealed class ConditionsMonitor : IDisposable
         };
     }
 
+    /// <summary>
+    /// While a wallpaper is covered, watch top-level windows move or change size (restoring a maximized window fires
+    /// none of the other hooks), so it plays again within a frame instead of on the next poll. Off otherwise: the
+    /// location event is frequent, and nothing needs it while every wallpaper is visible.
+    /// </summary>
+    private void WatchUncoverOff()
+    {
+        if (_locationHook != 0) NativeMethods.UnhookWinEvent(_locationHook);
+        _locationHook = 0;
+    }
+
+    public bool WatchUncover
+    {
+        get => _locationHook != 0;
+        set
+        {
+            if (_disposed || value == WatchUncover) return;
+            if (value) _locationHook = NativeMethods.SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, 0, _locationProc, 0, 0, WINEVENT_OUTOFCONTEXT);
+            else
+            {
+                NativeMethods.UnhookWinEvent(_locationHook);
+                _locationHook = 0;
+            }
+        }
+    }
+
+    // Only whole top-level windows count (not the caret, the cursor or controls inside a window).
+    private void OnLocationChange(nint hook, uint eventType, nint hwnd, int idObject, int idChild, uint thread, uint time)
+    {
+        if (_disposed || idObject != OBJID_WINDOW || idChild != 0 || hwnd == 0 || _fast.IsEnabled) return;
+        if (NativeMethods.GetAncestor(hwnd, GA_ROOT) != hwnd) return;
+        // The first move wakes within a frame; a window being dragged around (60 events a second) falls back to
+        // the normal debounce, so it can't turn into an evaluation storm.
+        long now = Environment.TickCount64;
+        if (now - _lastFastTick < 250)
+        {
+            RequestEvaluation();
+            return;
+        }
+        _lastFastTick = now;
+        _fast.Start();
+    }
+
     public void RequestEvaluation()
     {
         if (_disposed) return;
@@ -136,6 +194,8 @@ internal sealed class ConditionsMonitor : IDisposable
         _disposed = true;
         _poll.Stop();
         _debounce.Stop();
+        _fast.Stop();
+        WatchUncoverOff();
         SystemEvents.SessionSwitch -= OnSessionSwitch;
         foreach (var hook in _hooks) NativeMethods.UnhookWinEvent(hook);
         _hooks.Clear();

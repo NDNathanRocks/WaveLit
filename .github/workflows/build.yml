@@ -4,14 +4,17 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      VERSION: 0.1.${{ github.run_number }}.0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
@@ -21,10 +24,45 @@ jobs:
       - name: Test
         run: dotnet test tests/Wavelit.Core.Tests -c Release --no-build
 
-      - name: Publish (framework-dependent, x64)
-        run: dotnet publish src/Wavelit.App -c Release -r win-x64 --self-contained false -o publish/Wavelit
+      # Self-contained: Store users don't need the .NET runtime installed.
+      - name: Publish (self-contained, x64)
+        run: dotnet publish src/Wavelit.App -c Release -r win-x64 --self-contained true -p:Version=0.1.${{ github.run_number }} -o publish/Wavelit
 
-      - uses: actions/upload-artifact@v4
+      # MSIX for the Microsoft Store (unsigned: the Store signs it). Identity values come from repository
+      # variables (Settings → Secrets and variables → Actions → Variables), copied from Partner Center.
+      - name: Package MSIX
+        shell: pwsh
+        env:
+          IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME || 'Wavelit.Dev' }}
+          PUBLISHER: ${{ vars.MSIX_PUBLISHER || 'CN=Wavelit Dev' }}
+          PUBLISHER_DISPLAY: ${{ vars.MSIX_PUBLISHER_DISPLAY || 'Nathan Dsouza' }}
+        run: |
+          $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\makeappx.exe" | Sort-Object FullName | Select-Object -Last 1
+          if (-not $sdk) { throw "Windows SDK makeappx.exe not found" }
+          $bin = $sdk.DirectoryName
+          $stage = "msix-stage"
+          Copy-Item publish/Wavelit $stage -Recurse
+          Copy-Item packaging/Images "$stage/Images" -Recurse
+          (Get-Content packaging/Package.appxmanifest -Raw) `
+            -replace '\$IDENTITY_NAME\$', $env:IDENTITY_NAME `
+            -replace '\$PUBLISHER_DISPLAY\$', $env:PUBLISHER_DISPLAY `
+            -replace '\$PUBLISHER\$', $env:PUBLISHER `
+            -replace '\$VERSION\$', $env:VERSION |
+            Set-Content "$stage/AppxManifest.xml" -Encoding utf8
+          # Resource index, so the scale-qualified logos (Images\*.scale-200.png) are found.
+          & "$bin\makepri.exe" createconfig /cf priconfig.xml /dq en-US /pv 10.0.0 /o
+          if ($LASTEXITCODE) { throw "makepri createconfig failed" }
+          & "$bin\makepri.exe" new /pr $stage /cf priconfig.xml /mn "$stage/AppxManifest.xml" /of "$stage/resources.pri" /o
+          if ($LASTEXITCODE) { throw "makepri new failed" }
+          & "$bin\makeappx.exe" pack /d $stage /p "Wavelit-$env:VERSION-x64.msix" /o
+          if ($LASTEXITCODE) { throw "makeappx pack failed" }
+
+      - uses: actions/upload-artifact@v5
         with:
-          name: Wavelit-win-x64
+          name: Wavelit-win-x64-portable
           path: publish/Wavelit
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: Wavelit-msix
+          path: Wavelit-*.msix

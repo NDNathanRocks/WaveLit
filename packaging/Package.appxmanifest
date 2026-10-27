@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Wavelit MSIX manifest (Microsoft Store). Packed by .github/workflows/build.yml with the Windows SDK's makeappx.
+  $IDENTITY_NAME$, $PUBLISHER$, $PUBLISHER_DISPLAY$ and $VERSION$ are filled in by CI from repository variables:
+  copy the exact values from Partner Center → Product identity once the name "Wavelit" is reserved.
+
+  unvirtualizedResources: Wavelit changes per-user settings that belong to Windows and to TranslucentTB
+  (the taskbar's TaskbarAl, the Run key for start-with-Windows, TranslucentTB's settings.json). With MSIX's
+  default write virtualization those writes would land in a private copy and silently do nothing.
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 desktop desktop6 rescap">
+
+  <Identity Name="$IDENTITY_NAME$" Publisher="$PUBLISHER$" Version="$VERSION$" ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>Wavelit</DisplayName>
+    <PublisherDisplayName>$PUBLISHER_DISPLAY$</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+    <Description>Live wallpapers for Windows: videos, GPU shaders, music visualizers and desktop widgets across every monitor.</Description>
+    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
+    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+
+  <Applications>
+    <Application Id="Wavelit" Executable="Wavelit.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Wavelit"
+        Description="Live wallpapers, music visualizers and desktop widgets"
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png" ShortName="Wavelit">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo" />
+            <uap:ShowOn Tile="wide310x150Logo" />
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile>
+        <uap:SplashScreen Image="Images\SplashScreen.png" BackgroundColor="#14121F" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- "wavelit.exe" on the PATH: the start-with-Windows entry and the command-line switches use it. -->
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="Wavelit.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap3:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="wavelit.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="unvirtualizedResources" />
+  </Capabilities>
+</Package>

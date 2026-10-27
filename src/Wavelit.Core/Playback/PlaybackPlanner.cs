@@ -10,9 +10,26 @@ public enum PlaybackState
     Suspended,
 }
 
-public sealed record PlaybackDecision(PlaybackState State, string Reason)
+/// <param name="Covered">Suspended only because windows cover it (they can move away at any moment).</param>
+public sealed record PlaybackDecision(PlaybackState State, string Reason, bool Covered = false)
 {
     public static readonly PlaybackDecision Play = new(PlaybackState.Playing, "Playing");
+}
+
+/// <summary>
+/// A covered wallpaper is first only Frozen (frame kept on screen, render loop stopped: about 0% GPU) and is fully
+/// Suspended once it has stayed covered for <see cref="Delay"/>. Suspending hides the renderer, so a window that
+/// un-maximizes right away would otherwise reveal Explorer's static wallpaper for a moment (round 8, §23.2).
+/// </summary>
+public static class CoverGrace
+{
+    public static readonly TimeSpan Delay = TimeSpan.FromSeconds(15);
+
+    /// <param name="coveredSince">When this host became covered (null = not covered before this decision).</param>
+    public static PlaybackDecision Apply(PlaybackDecision decision, DateTime? coveredSince, DateTime now)
+        => decision is { Covered: true, State: PlaybackState.Suspended } && (coveredSince is null || now - coveredSince.Value < Delay)
+            ? decision with { State = PlaybackState.Frozen }
+            : decision;
 }
 
 /// <summary>Snapshot of everything that affects whether wallpapers should render.</summary>
@@ -52,7 +69,7 @@ public static class PlaybackPlanner
         if (hostMonitors.Count > 0 && hostMonitors.All(m => IsHidden(m, c, rules)))
         {
             bool fs = hostMonitors.Any(c.Occlusion.FullscreenMonitors.Contains);
-            return new(PlaybackState.Suspended, fs ? "Fullscreen app running" : "Covered by a maximized window");
+            return new(PlaybackState.Suspended, fs ? "Fullscreen app running" : "Covered by a maximized window", Covered: true);
         }
 
         if (c.UserPaused) return new(PlaybackState.Frozen, "Paused");

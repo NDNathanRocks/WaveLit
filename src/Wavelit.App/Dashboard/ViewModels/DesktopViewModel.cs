@@ -32,6 +32,7 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
     private readonly TaskbarService _taskbar;
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _sceneTimer;
+    private readonly DispatcherTimer _ttbTimer;   // notices TranslucentTB being installed or started while the page is open
     private readonly Stack<IReadOnlyList<DesktopWidget>> _undo = new();
     private readonly Dictionary<string, string?> _backgrounds = new();
     private DateTime _lastUndoPush;
@@ -49,6 +50,8 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
         _dispatcher = Dispatcher.CurrentDispatcher;
         _sceneTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(60), DispatcherPriority.Background, (_, _) => PushScene(), _dispatcher);
         _sceneTimer.Stop();
+        _ttbTimer = new DispatcherTimer(TimeSpan.FromSeconds(3), DispatcherPriority.Background, (_, _) => RefreshTranslucentTb(), _dispatcher);
+        _ttbTimer.Stop();
 
         foreach (var (id, name, blurb) in WidgetThemes.All) Themes.Add(MakeThemeCard(id, name, blurb));
         foreach (var (id, (name, _)) in WidgetFonts.All) Fonts.Add(new FontChoice(id, name, new FontFamily(WpfFont(id))));
@@ -95,13 +98,19 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
     public void Activate()
     {
         _active = true;
+        RefreshTranslucentTb();
+        _ttbTimer.Start();
         RebuildMonitors();
         _backgrounds.Clear();
         _ = RefreshBackgroundAsync();
         RequestScene();
     }
 
-    public void Deactivate() => _active = false;
+    public void Deactivate()
+    {
+        _active = false;
+        _ttbTimer.Stop();
+    }
 
     public bool WidgetsOn
     {
@@ -296,6 +305,99 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
         set => Context.Settings.Update(s => s with { Desktop = s.Desktop with { Taskbar = T with { KeepAfterQuit = value } } });
     }
 
+    // ---- TranslucentTB (plan §23.1): clear / glass taskbar without injecting anything ourselves
+
+    public IReadOnlyList<TaskbarLook> Looks => TranslucentTb.Looks;
+    public bool TtbInstalled { get; private set; }
+    public bool TtbNotInstalled => !TtbInstalled;
+    public bool TtbRunning { get; private set; }
+    public bool TtbStopped => TtbInstalled && !TtbRunning;
+    public bool TtbHasBackup { get; private set; }
+    public string? CurrentLook { get; private set; }
+
+    public bool SolidWhenMaximized
+    {
+        get => T.SolidWhenMaximized;
+        set
+        {
+            Context.Settings.Update(s => s with { Desktop = s.Desktop with { Taskbar = T with { SolidWhenMaximized = value } } });
+            if (CurrentLook is { } id && TranslucentTb.Looks.FirstOrDefault(l => l.Id == id) is { } look) ApplyLook(look);
+        }
+    }
+
+    private void RefreshTranslucentTb()
+    {
+        var ttb = _taskbar.TranslucentTb;
+        TtbInstalled = ttb.IsInstalled;
+        TtbRunning = TtbInstalled && TaskbarService.TranslucentTbRunning;
+        TtbHasBackup = ttb.HasBackup;
+        CurrentLook = TtbInstalled ? ttb.CurrentLook() : null;
+        foreach (var name in new[] { nameof(TtbInstalled), nameof(TtbNotInstalled), nameof(TtbRunning), nameof(TtbStopped), nameof(TtbHasBackup), nameof(CurrentLook) })
+            OnPropertyChanged(name);
+    }
+
+    [RelayCommand]
+    private void GetTranslucentTb()
+    {
+        Open(TranslucentTb.StoreUri, TranslucentTb.StoreWebUrl);
+        Context.Notify("Get TranslucentTB", "Install it from the Store (free). This page notices as soon as it's installed.", NoticeLevel.Info);
+    }
+
+    [RelayCommand]
+    private void StartTranslucentTb()
+    {
+        if (!_taskbar.StartTranslucentTb())
+            Context.Notify("Couldn't start TranslucentTB", "Open it from the Start menu once; it then starts with Windows.", NoticeLevel.Warning);
+        _ttbTimer.Start();
+    }
+
+    [RelayCommand]
+    private void ApplyLook(TaskbarLook? look)
+    {
+        if (look is null) return;
+        try
+        {
+            _taskbar.TranslucentTb.Apply(look, T.SolidWhenMaximized);
+            if (!TaskbarService.TranslucentTbRunning) _taskbar.StartTranslucentTb();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            Serilog.Log.Warning(ex, "TranslucentTB settings couldn't be written");
+            Context.Notify("Couldn't change TranslucentTB", "Its settings file is in use or read-only. Try again in a moment.", NoticeLevel.Warning);
+        }
+        RefreshTranslucentTb();
+    }
+
+    [RelayCommand]
+    private void RestoreTranslucentTb()
+    {
+        try
+        {
+            _taskbar.TranslucentTb.Restore();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Serilog.Log.Warning(ex, "TranslucentTB settings couldn't be restored");
+        }
+        RefreshTranslucentTb();
+    }
+
+    private static void Open(string uri, string fallback)
+    {
+        foreach (string target in new[] { uri, fallback })
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true })?.Dispose();
+                return;
+            }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+            {
+                Serilog.Log.Debug(ex, "Couldn't open {Target}", target);
+            }
+        }
+    }
+
     public string? TaskbarProblem => _taskbar.Problem;
     public bool HasTaskbarProblem => _taskbar.Problem is not null;
 
@@ -450,6 +552,7 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
         _sceneTimer.Stop();
+        _ttbTimer.Stop();
         Context.Settings.Changed -= OnSettingsChanged;
         Context.PropertyChanged -= OnContextChanged;
         _taskbar.StatusChanged -= OnTaskbarStatus;

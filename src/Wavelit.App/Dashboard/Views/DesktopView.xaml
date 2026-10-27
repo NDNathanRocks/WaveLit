@@ -261,13 +261,42 @@
                             </StackPanel>
                             <TextBlock Text="Icons" Style="{StaticResource PanelLabel}" />
                             <ComboBox ItemsSource="{Binding TaskbarAligns}" DisplayMemberPath="Label" SelectedItem="{Binding TaskbarAlign}" AutomationProperties.Name="Taskbar icons" />
-                            <Grid Margin="0,14,0,0">
-                                <StackPanel Margin="0,0,60,0">
-                                    <TextBlock Text="Invisible taskbar" FontWeight="SemiBold" />
-                                    <TextBlock Style="{StaticResource Caption}" Text="Hidden until you point at the bottom of the screen, so your wallpaper fills the whole display." />
+
+                            <!-- Clear / glass (TranslucentTB) -->
+                            <TextBlock Text="See-through taskbar" FontWeight="SemiBold" Margin="0,16,0,2" />
+                            <StackPanel Visibility="{Binding TtbNotInstalled, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Style="{StaticResource Caption}"
+                                           Text="Wavelit pairs with TranslucentTB, a free open-source app on the Microsoft Store, to make the taskbar clear or glass so your wallpaper runs to the bottom edge. Install it once and pick a look here." />
+                                <ui:Button Margin="0,10,0,0" Appearance="Primary" Icon="{ui:SymbolIcon ArrowDownload24}" Content="Get TranslucentTB (free)"
+                                           Command="{Binding GetTranslucentTbCommand}" />
+                            </StackPanel>
+                            <StackPanel Visibility="{Binding TtbInstalled, Converter={StaticResource BoolToVisibility}}">
+                                <ItemsControl Margin="0,6,0,0" ItemsSource="{Binding Looks}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="2" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <ui:Button Margin="0,0,6,6" HorizontalAlignment="Stretch" Content="{Binding Name}" ToolTip="{Binding Blurb}"
+                                                       AutomationProperties.Name="{Binding Name, StringFormat=Taskbar look: {0}}"
+                                                       Command="{Binding DataContext.ApplyLookCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                       CommandParameter="{Binding}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <CheckBox Margin="0,4,0,0" Content="Solid while a window is maximized" IsChecked="{Binding SolidWhenMaximized}" />
+                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                    <ui:Button Content="Start TranslucentTB" Icon="{ui:SymbolIcon Play24}" Command="{Binding StartTranslucentTbCommand}"
+                                               Visibility="{Binding TtbStopped, Converter={StaticResource BoolToVisibility}}" Margin="0,0,8,0" />
+                                    <ui:Button Content="Undo my changes" Icon="{ui:SymbolIcon ArrowUndo24}" Command="{Binding RestoreTranslucentTbCommand}"
+                                               Visibility="{Binding TtbHasBackup, Converter={StaticResource BoolToVisibility}}"
+                                               ToolTip="Put TranslucentTB's own settings back as they were" />
                                 </StackPanel>
-                                <ui:ToggleSwitch HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding TaskbarAutoHide}" AutomationProperties.Name="Invisible taskbar" />
-                            </Grid>
+                                <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0"
+                                           Text="Looks apply instantly through TranslucentTB's own settings. Wavelit never injects anything into Windows Explorer." />
+                            </StackPanel>
                             <Grid Margin="0,14,0,0">
                                 <StackPanel Margin="0,0,60,0">
                                     <TextBlock Text="Keep after quitting Wavelit" FontWeight="SemiBold" />
@@ -278,7 +307,7 @@
                             <TextBlock Style="{StaticResource Caption}" Margin="0,12,0,0" Foreground="{DynamicResource SystemFillColorCautionBrush}"
                                        Text="{Binding TaskbarProblem}" Visibility="{Binding HasTaskbarProblem, Converter={StaticResource BoolToVisibility}}" />
                             <TextBlock Style="{StaticResource Caption}" Margin="0,12,0,0"
-                                       Text="Wavelit uses Windows' own taskbar settings: nothing is injected into Explorer and no admin rights are needed." />
+                                       Text="Icon position uses Windows' own setting; no admin rights are needed." />
                         </StackPanel>
                     </Border>
                 </StackPanel>

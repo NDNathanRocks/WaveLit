@@ -150,7 +150,9 @@ public sealed record DesktopSettings(bool WidgetsOn = false, string Theme = "hal
 /// </summary>
 /// <param name="Align">"unchanged", "center" or "left".</param>
 /// <param name="AutoHide">Invisible until the pointer touches the screen edge (Windows auto-hide).</param>
-public sealed record TaskbarSettings(string Align = TaskbarSettings.Unchanged, bool AutoHide = false, bool KeepAfterQuit = false)
+/// <param name="SolidWhenMaximized">With a TranslucentTB look: Windows' normal taskbar while a window is maximized.</param>
+public sealed record TaskbarSettings(string Align = TaskbarSettings.Unchanged, bool AutoHide = false, bool KeepAfterQuit = false,
+    bool SolidWhenMaximized = true)
 {
     public const string Unchanged = "unchanged", Center = "center", Left = "left";
     public static readonly IReadOnlyList<string> Aligns = [Unchanged, Center, Left];

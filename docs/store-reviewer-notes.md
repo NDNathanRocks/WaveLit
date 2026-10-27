@@ -45,4 +45,11 @@ Wavelit is a live-wallpaper app. It shows videos, images, animated shaders or we
 - *Studio → Music tab:* pick "Any AI chat (free)", copy the prompt, paste a reply. The preview plays a built-in demo beat; nothing is heard.
 - *Desktop page:* turn on "Widgets on the desktop", pick a theme, then drag the clock in the preview. The real desktop updates. Taskbar: "Centred/Left" and "Invisible taskbar" use Windows' own settings and are restored when Wavelit quits.
 
+**Restricted capability `unvirtualizedResources` (justification).** Wavelit is a desktop personalisation app. At the user's request it changes per-user settings that belong to Windows and to another app:
+- the taskbar icon alignment (`HKCU\…\Explorer\Advanced\TaskbarAl`);
+- start-with-Windows (`HKCU\…\Run`, through the `wavelit.exe` execution alias);
+- TranslucentTB's `settings.json`, for a see-through taskbar (only when the user picks a look).
+
+With MSIX write virtualization these changes would land in a private copy and have no effect. Every change is opt-in, the previous values are saved first, and they are restored when the feature is turned off (the taskbar settings also on quit). Wavelit's own data stays in `%LOCALAPPDATA%\Wavelit`.
+
 **Privacy.** No telemetry, no account. Network requests go only to the services the user uses (listed in the privacy policy). Privacy policy: `<<GITHUB PAGES URL>>/privacy-policy`.

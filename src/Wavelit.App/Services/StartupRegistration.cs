@@ -1,16 +1,20 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
 namespace Wavelit.App.Services;
 
-/// <summary>Start-with-Windows via the per-user Run key (unpackaged builds).</summary>
+/// <summary>
+/// Start-with-Windows via the per-user Run key. The Store (MSIX) build disables registry write virtualization
+/// (packaging/Package.appxmanifest) and starts through its "wavelit.exe" execution alias, so the app launches
+/// with its package identity.
+/// </summary>
 internal static class StartupRegistration
 {
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "Wavelit";
     public const string BackgroundArg = "--background";
 
-    /// <summary>MSIX builds register a startup task in the manifest instead (registry writes are virtualized there).</summary>
     public static bool IsPackaged
     {
         get
@@ -22,7 +26,10 @@ internal static class StartupRegistration
 
     public static void Apply(bool enabled)
     {
-        if (IsPackaged || Environment.ProcessPath is not { } exe) return;
+        string? exe = IsPackaged
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WindowsApps", "wavelit.exe")
+            : Environment.ProcessPath;
+        if (exe is null) return;
         using var key = Registry.CurrentUser.CreateSubKey(RunKey, writable: true);
         if (enabled) key.SetValue(ValueName, $"\"{exe}\" {BackgroundArg}");
         else if (key.GetValue(ValueName) is not null) key.DeleteValue(ValueName, throwOnMissingValue: false);

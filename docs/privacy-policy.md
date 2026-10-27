@@ -19,7 +19,7 @@ Wavelit stores these files in `%LOCALAPPDATA%\Wavelit` on your computer:
 - the city you pick for day-and-night wallpapers (used only to work out sunrise and sunset on your PC);
 - log files for troubleshooting, kept for 7 days. Logs never contain API keys or prompts (the Studio logs only the number of AI tokens used, so you can see the cost).
 
-Uninstalling Wavelit, or deleting that folder, removes all of it.
+Deleting that folder removes all of it. The Microsoft Store version keeps it in the same place (so your library survives reinstalling); delete the folder after uninstalling if you want everything gone.
 
 ## The mouse cursor (overlays and interactive wallpapers)
 
@@ -36,6 +36,8 @@ The clock, date, greeting and title you put on the desktop are drawn by Wavelit 
 If you choose a taskbar option on the Desktop page (icon alignment, or hiding the taskbar), Wavelit changes Windows' own per-user taskbar settings. It first saves your previous values in `taskbar-original.json` in the same folder, and puts them back when you turn the option off or quit Wavelit (unless you chose "Keep after quitting"). Nothing is injected into Windows Explorer and no administrator rights are used.
 
 ## Reporting AI-made content
+
+Wavelit can also apply a see-through taskbar look by editing the appearance section of **TranslucentTB**'s own settings file (only when you pick a look). Your original TranslucentTB settings are saved first, and "Undo my changes" restores them.
 
 The **Report** button on AI creations opens a pre-filled report on GitHub in your browser. Wavelit itself sends nothing: you see the report and decide whether to submit it, and the prompt and code are included only if you tick the box. Reports on GitHub are public.
 

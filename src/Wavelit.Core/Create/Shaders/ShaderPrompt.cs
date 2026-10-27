@@ -156,10 +156,14 @@ public static class ShaderPrompt
     private static readonly string Examples = BuildExamples();
 
     /// <summary>System prompt for API providers (structured JSON answer). Byte-stable.</summary>
-    public static string System { get; } = Contract + Examples + JsonTail;
+    // Line endings in these literals follow the source file's checkout (CRLF with core.autocrlf), so normalise them:
+    // the prompt must be byte-identical on every machine for provider caching.
+    public static string System { get; } = Lf(Contract + Examples + JsonTail);
 
     /// <summary>The same contract for any chat AI (answer in a code block).</summary>
-    public static string ChatSystem { get; } = Contract + Examples + ChatTail;
+    public static string ChatSystem { get; } = Lf(Contract + Examples + ChatTail);
+
+    private static string Lf(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal);
 
     private static string BuildExamples()
     {

@@ -466,9 +466,12 @@ public sealed class WallpaperService : IAsyncDisposable
         var rules = _settings.Current.Rules;
         bool changed = false;
 
+        var now = DateTime.UtcNow;
         foreach (var entry in _hosts.Values.ToList())
         {
-            var decision = PlaybackPlanner.Decide(entry.Host.Monitors.Select(m => m.Id).ToList(), conditions, rules);
+            var planned = PlaybackPlanner.Decide(entry.Host.Monitors.Select(m => m.Id).ToList(), conditions, rules);
+            entry.CoveredSince = planned.Covered ? entry.CoveredSince ?? now : null;
+            var decision = CoverGrace.Apply(planned, entry.CoveredSince, now);
             if (entry.Decision == decision) continue;
             entry.Decision = decision;
             changed = true;
@@ -490,6 +493,8 @@ public sealed class WallpaperService : IAsyncDisposable
             EcoQos.Set(allIdle);
         }
 
+        // Any covered wallpaper: wake the moment its window moves away.
+        _conditions.WatchUncover = !_disposed && _hosts.Values.Any(h => h.CoveredSince is not null);
         UpdatePointerFeed();
         if (changed) Publish(desktopAvailable: _layer is not null);
     }
@@ -640,6 +645,8 @@ public sealed class WallpaperService : IAsyncDisposable
         public PlaybackDecision Decision { get; set; } = PlaybackDecision.Play;
         public string? Error { get; set; }
         public bool IsSlice { get; set; }
+        /// <summary>When windows started covering this host (null = not covered).</summary>
+        public DateTime? CoveredSince { get; set; }
 
         public void Dispose()
         {

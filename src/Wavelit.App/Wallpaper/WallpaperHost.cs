@@ -381,6 +381,8 @@ internal sealed class WallpaperHost : IDisposable
 
             case PlaybackState.Suspended:
                 Post(new { type = "pause" });
+                // Hold the last frame under the hidden renderer, so nothing else shows through when it wakes.
+                if (_snapshot.Source is null && _web.Visibility == Visibility.Visible && LoadedItemId is not null) await CaptureSnapshotAsync();
                 await SuspendAsync();
                 break;
         }
