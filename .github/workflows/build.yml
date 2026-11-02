@@ -28,14 +28,14 @@ jobs:
       - name: Publish (self-contained, x64)
         run: dotnet publish src/Wavelit.App -c Release -r win-x64 --self-contained true -p:Version=0.1.${{ github.run_number }} -o publish/Wavelit
 
-      # MSIX for the Microsoft Store (unsigned: the Store signs it). Identity values come from repository
-      # variables (Settings → Secrets and variables → Actions → Variables), copied from Partner Center.
+      # MSIX for the Microsoft Store (unsigned: the Store signs it). The identity is Wavelit's reserved
+      # Partner Center identity (public: it is in every package); repository variables can override it for forks.
       - name: Package MSIX
         shell: pwsh
         env:
-          IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME || 'Wavelit.Dev' }}
-          PUBLISHER: ${{ vars.MSIX_PUBLISHER || 'CN=Wavelit Dev' }}
-          PUBLISHER_DISPLAY: ${{ vars.MSIX_PUBLISHER_DISPLAY || 'Nathan Dsouza' }}
+          IDENTITY_NAME: ${{ vars.MSIX_IDENTITY_NAME || 'NathanDSouza.WaveLit' }}
+          PUBLISHER: ${{ vars.MSIX_PUBLISHER || 'CN=BA4D4A70-CB80-43C4-B90D-0A8C6A350832' }}
+          PUBLISHER_DISPLAY: ${{ vars.MSIX_PUBLISHER_DISPLAY || 'Nathan D''Souza' }}
         run: |
           $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.*\x64\makeappx.exe" | Sort-Object FullName | Select-Object -Last 1
           if (-not $sdk) { throw "Windows SDK makeappx.exe not found" }

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Wavelit MSIX manifest (Microsoft Store). Packed by .github/workflows/build.yml with the Windows SDK's makeappx.
-  $IDENTITY_NAME$, $PUBLISHER$, $PUBLISHER_DISPLAY$ and $VERSION$ are filled in by CI from repository variables:
-  copy the exact values from Partner Center → Product identity once the name "Wavelit" is reserved.
+  $IDENTITY_NAME$, $PUBLISHER$, $PUBLISHER_DISPLAY$ and $VERSION$ are filled in by CI (build.yml) with the
+  identity reserved in Partner Center → Product identity (NathanDSouza.WaveLit).
 
   unvirtualizedResources: Wavelit changes per-user settings that belong to Windows and to TranslucentTB
   (the taskbar's TaskbarAl, the Run key for start-with-Windows, TranslucentTB's settings.json). With MSIX's
