@@ -24,6 +24,8 @@ internal sealed class AudioFeed : IDisposable
     private readonly DispatcherTimer _timer;
     private readonly Lock _gate = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly MusicClock _music = new();   // kept across starts and stops: the overlays' clock never jumps back
+    private double _lastTick;
     private WasapiRecorder? _capture;
     private WaveFormat? _format;
     private AudioAnalyzer? _analyzer;
@@ -53,6 +55,7 @@ internal sealed class AudioFeed : IDisposable
             {
                 _sentSilence = false;
                 _retryAt = 0;
+                _lastTick = 0;
                 _timer.Start();
                 StartCapture();
             }
@@ -61,7 +64,7 @@ internal sealed class AudioFeed : IDisposable
                 _timer.Stop();
                 StopCapture();
                 // Let the visualizers ease into their idle state instead of freezing mid-beat.
-                foreach (var host in _hosts()) host.SendAudio(AudioFrame.Quiet);
+                foreach (var host in _hosts()) host.SendAudio(_music.Stamp(AudioFrame.Quiet));
             }
         }
     }
@@ -101,6 +104,11 @@ internal sealed class AudioFeed : IDisposable
                 frame = _analyzer.Analyze(now);
             }
         }
+
+        // The music clock advances on this thread only; a gap (feed was off) counts as real time, no jump.
+        _music.Advance(frame, _lastTick > 0 ? now - _lastTick : 1 / 60.0);
+        _lastTick = now;
+        frame = _music.Stamp(frame);
 
         if (frame.Silent && _sentSilence) return;   // one quiet frame is enough; the page eases to idle
         _sentSilence = frame.Silent;

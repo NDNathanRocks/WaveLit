@@ -20,6 +20,9 @@
 //   iPeaks[16]      falling peak caps, same packing
 //   iCentroid       0 = bass-heavy … 1 = bright
 //   iAudioPresence  0 = silence (idle) … 1 = music playing
+//   wavelitMusic    x = the music clock's seconds ahead of real time (MusicClock in Wavelit: it runs faster when
+//                   the music is louder and surges on each beat, so overlays can fall or drift to the music),
+//                   y = its pace (1 = real time), z = beat pulse, w = presence
 (function () {
   const BANDS = 64;
   const ATTACK = 0.03, RELEASE = 0.25;     // seconds
@@ -32,6 +35,9 @@
     bands: new Float32Array(BANDS), peaks: new Float32Array(BANDS), peakAge: new Float32Array(BANDS),
     peakVel: new Float32Array(BANDS), s: [0, 0, 0, 0], centroid: 0.5, presence: 0,
     pulse: 0, pulseTarget: 0, lastBeat: -1e12, lastTrigger: -1e12, stepped: 0, received: -1e12,
+    // The music clock: Wavelit sends its value (mt) and pace with each frame; between frames it is carried on at
+    // that pace, so it never stutters. When frames stop (silence, or the feed is off) it holds still.
+    musicExtra: 0, pace: 1, musicAt: 0,
   };
   let config = { sensitivity: 0.5, reduceFlashing: true };
   let demoTimer = 0;
@@ -60,7 +66,20 @@
     target.bpm = Number(msg.bpm) > 0 ? Number(msg.bpm) : 0;
     target.count = Number(msg.n) | 0;
     state.received = now;
+    if (Number.isFinite(Number(msg.mt))) {
+      // Never let the clock run backwards: a frame that lands behind our extrapolation is simply held.
+      state.musicExtra = Math.max(musicExtra(now), Number(msg.mt));
+      state.pace = Number.isFinite(Number(msg.pace)) ? Math.min(3, Math.max(0.25, Number(msg.pace))) : 1;
+      state.musicAt = now;
+    }
     if (msg.beat && !target.silent) beat(now);
+  }
+
+  // Seconds the music clock is ahead of real time, carried forward at the last pace while frames keep arriving.
+  function musicExtra(now) {
+    if (!state.musicAt) return 0;
+    const since = Math.min(Math.max((now - state.musicAt) / 1000, 0), STALE_MS / 1000);
+    return state.musicExtra + (state.pace - 1) * since;
   }
 
   function beat(now) {
@@ -117,6 +136,7 @@
     step(now);
     spectrum.set(state.bands);
     peaks.set(state.peaks);
+    const stale = now - state.received > STALE_MS;
     return {
       audio: [state.s[0], state.s[1], state.s[2], state.s[3]],
       beat: [state.pulse * state.presence, Math.min((now - state.lastBeat) / 1000, 1e4), target.bpm, target.count],
@@ -124,6 +144,7 @@
       peaks,
       centroid: state.centroid,
       presence: state.presence,
+      music: [musicExtra(now), stale ? 1 : state.pace, state.pulse * state.presence, state.presence],
     };
   }
 
@@ -138,11 +159,19 @@
     if (!on) return;
     const start = performance.now();
     let lastBeat = -1;
+    // The demo's music clock, following the same rule as MusicClock in Wavelit (louder and beats = faster).
+    let extra = state.musicAt ? musicExtra(performance.now()) : 0, pace = 1, env = 0, lastT = 0;
     demoTimer = setInterval(() => {
       const t = (performance.now() - start) / 1000;
       const beatIndex = Math.floor(t / 0.5);
       const ph = t - beatIndex * 0.5;
       const kick = Math.exp(-ph * 9);
+      const dt = Math.min(0.25, Math.max(0, t - lastT));
+      lastT = t;
+      env = Math.max(env * Math.exp(-dt / 0.22), beatIndex !== lastBeat ? 1 : 0);
+      const level = 0.45 + 0.25 * kick;
+      pace += (Math.min(2.6, Math.max(0.5, 0.7 + 0.9 * level + 1.1 * env)) - pace) * Math.min(1, dt * 8);
+      extra += (pace - 1) * dt;
       const chord = [0, 3, 7, 10][Math.floor(t / 4) % 4];
       const b = new Array(BANDS);
       for (let i = 0; i < BANDS; i++) {
@@ -157,7 +186,7 @@
       const beatNow = beatIndex !== lastBeat;
       lastBeat = beatIndex;
       update({ b, s: [mean(0, 16), mean(16, 43), mean(43, 64), mean(0, 64), 0.42 + 0.1 * Math.sin(t * 0.3)],
-        beat: beatNow, bpm: 120, n: beatIndex, silent: false });
+        beat: beatNow, bpm: 120, n: beatIndex, silent: false, mt: extra, pace });
     }, 16);
   }
 

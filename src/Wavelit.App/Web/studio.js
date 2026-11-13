@@ -36,14 +36,15 @@
     return { name, params: p, passes: [{ type: 'image', code, inputs: [] }] };
   }
 
-  const AUDIO = /\b(iAudio|iBeat|iSpectrum|iPeaks|iCentroid|iAudioPresence)\b/;
+  // Must agree with AUDIO_UNIFORMS in shader-runtime.js and AudioSettings.CodeUsesAudio in Wavelit.Core.
+  const AUDIO = /\b(iAudio|iBeat|iSpectrum|iPeaks|iCentroid|iAudioPresence|wavelitMusic|ilMusic|ilBeat|ilAudio)\b/;
   const usesAudio = (code) => typeof code === 'string' && AUDIO.test(code);
 
   // Loud, busy music for the probe, so a shader's heaviest musical moment is what gets timed.
   function busyAudio() {
     const spectrum = new Float32Array(64).fill(0.85), peaks = new Float32Array(64).fill(0.95);
     return {
-      sample: () => ({ audio: [0.9, 0.85, 0.8, 0.85], beat: [1, 0.05, 128, 64], spectrum, peaks, centroid: 0.5, presence: 1 }),
+      sample: () => ({ audio: [0.9, 0.85, 0.8, 0.85], beat: [1, 0.05, 128, 64], spectrum, peaks, centroid: 0.5, presence: 1, music: [3607.2, 2.6, 1, 1] }),
       isActive: () => true, update() {}, configure() {}, demo() {},
     };
   }

@@ -47,6 +47,7 @@ uniform vec4 iSpectrum[16];
 uniform vec4 iPeaks[16];
 uniform float iCentroid;
 uniform float iAudioPresence;
+uniform vec4 wavelitMusic;
 uniform vec4 iParams;
 out vec4 wavelitFragColor;
 `;
@@ -79,7 +80,8 @@ void main() {
   // One step per 5 s window with more than 20% late frames; one step back after 60 s without trouble.
   const GUARD_STEPS = [1, 0.75, 0.5];
   const GUARD_WINDOW_MS = 5000, GUARD_RECOVER_MS = 60000, GUARD_LATE = 0.2;
-  const AUDIO_UNIFORMS = /\b(iAudio|iBeat|iSpectrum|iPeaks|iCentroid|iAudioPresence)\b/;
+  // Must agree with AudioSettings.CodeUsesAudio in Wavelit.Core and AUDIO in studio.js.
+  const AUDIO_UNIFORMS = /\b(iAudio|iBeat|iSpectrum|iPeaks|iCentroid|iAudioPresence|wavelitMusic|ilMusic|ilBeat|ilAudio)\b/;
 
   // Tunables: an optional "// @params name min max default | …" line (up to 4) declares iParams.x..w.
   // program.params (values chosen with the Studio sliders) override the defaults.
@@ -208,7 +210,7 @@ void main() {
               focus: u('iFocus'), viewport: u('iViewport'), offset: u('wavelitOffset'),
               pointer: u('iPointer'), click: u('iClick'), trail: u('iTrail'), tint: u('wavelitTint'), style: u('wavelitStyle'),
               audio: u('iAudio'), beat: u('iBeat'), spectrum: u('iSpectrum'), peaks: u('iPeaks'),
-              centroid: u('iCentroid'), presence: u('iAudioPresence'), params: u('iParams'),
+              centroid: u('iCentroid'), presence: u('iAudioPresence'), music: u('wavelitMusic'), params: u('iParams'),
             },
             usesPointer: /\b(iMouse|iPointer|iClick|iTrail)\b/.test(p.code + common),
             usesAudio: AUDIO_UNIFORMS.test(p.code + common),
@@ -446,7 +448,8 @@ void main() {
         d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000];
       const ptr = this.usesPointer && window.WavelitPointer ? window.WavelitPointer.sample(space.k, space.canvasHeight) : null;
       const tint = this.program.tint ? this.program.tint() : null;
-      const snd = this.usesAudio && window.WavelitAudio ? window.WavelitAudio.sample() : null;
+      // program.music === false: an overlay whose "Move with the music" is off keeps real time (no clock jump).
+      const snd = this.usesAudio && this.program.music !== false && window.WavelitAudio ? window.WavelitAudio.sample() : null;
       const style = this.program.style ? this.program.style() : null;
 
       for (const pass of this.passes) {
@@ -519,8 +522,10 @@ void main() {
           if (L.peaks) gl.uniform4fv(L.peaks, snd.peaks);
           if (L.centroid) gl.uniform1f(L.centroid, snd.centroid);
           if (L.presence) gl.uniform1f(L.presence, snd.presence);
-        } else if (L.beat) {
-          gl.uniform4f(L.beat, 0, 1e4, 0, 0);
+          if (L.music) gl.uniform4fv(L.music, snd.music || [0, 1, 0, 0]);
+        } else {
+          if (L.beat) gl.uniform4f(L.beat, 0, 1e4, 0, 0);
+          if (L.music) gl.uniform4f(L.music, 0, 1, 0, 0);
         }
         if (L.params) gl.uniform4fv(L.params, this.params);
         if (L.sampleRate) gl.uniform1f(L.sampleRate, 44100);

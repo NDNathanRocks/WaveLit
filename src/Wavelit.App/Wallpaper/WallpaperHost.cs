@@ -299,6 +299,8 @@ internal sealed class WallpaperHost : IDisposable
             bpm = f.Bpm,
             n = f.BeatCount,
             silent = f.Silent,
+            mt = Math.Round(f.MusicExtra, 3),   // the music clock (MusicClock): shared by every Extend slice
+            pace = Math.Round(f.Pace, 3),
         });
     }
 
@@ -590,6 +592,8 @@ internal sealed class WallpaperHost : IDisposable
         response = i.Response,
         opacity = i.Opacity,
         music = i.Music && o.Audio.Enabled,
+        // Made for music (Resonant Stardust, Studio music overlays): listens even with "Move with the music" off.
+        audioStyle = o.Audio.Enabled && (InteractiveSettings.AudioStyles.Contains(i.Style) || o.CustomOf(i) is { } c && AudioSettings.CodeUsesAudio(c.Code)),
         @params = o.CustomOf(i)?.Params,
     };
 

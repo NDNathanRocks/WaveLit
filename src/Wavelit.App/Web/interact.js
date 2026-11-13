@@ -31,6 +31,11 @@ float ilSize() { return wavelitStyle.x; }
 float ilTime() { return iTime * wavelitStyle.y; }
 float ilResponse() { return wavelitStyle.z; }
 float ilPresence() { return iPointer.z * min(ilResponse(), 1.0); }
+// Music ("Move with the music"): a clock that runs faster when the music is louder and surges on each beat, the
+// beat pulse (0..1) and the loudness (0..1). All 0 / real time when music is off or nothing plays.
+float ilMusic() { return ilTime() + wavelitMusic.x * wavelitStyle.y; }
+float ilBeat() { return wavelitMusic.z; }
+float ilAudio() { return iAudio.w * wavelitMusic.w; }
 vec2 ilPtr() { return ilSpace(iPointer.xy); }
 mat2 ilRot(float a) { float s = sin(a), c = cos(a); return mat2(c, s, -s, c); }
 vec4 ilOut(vec3 col, float a) { a = clamp(a, 0.0, 1.0) * wavelitStyle.w; return vec4(col * a, a); }
@@ -123,7 +128,7 @@ float ilMotes(vec2 p, vec2 q, float scale, float seed, float t, float radius, fl
     stardust: COMMON + `
 void mainImage(out vec4 o, in vec2 fc) {
   vec2 p = ilSpace(fc), q = p;
-  float amt = ilAmount(), t = ilTime(), sz = ilSize();
+  float amt = ilAmount(), t = ilMusic(), sz = ilSize();
   float size = 0.075 * ilResponse(), burst = 0.25 * min(ilResponse(), 1.0);
   float a = 0.0;
   if (ilPart(q, size, burst)) {
@@ -138,7 +143,7 @@ void mainImage(out vec4 o, in vec2 fc) {
     fireflies: COMMON + `
 void mainImage(out vec4 o, in vec2 fc) {
   vec2 q = ilSpace(fc);
-  float amt = ilAmount(), t = ilTime(), sz = ilSize();
+  float amt = ilAmount(), t = ilMusic(), sz = ilSize();
   vec2 c = ilPtr();
   float pres = ilPresence();
   float a = 0.0;
@@ -250,7 +255,7 @@ void mainImage(out vec4 o, in vec2 fc) {
     petals: COMMON + `
 void mainImage(out vec4 o, in vec2 fc) {
   vec2 p = ilSpace(fc);
-  float amt = ilAmount(), t = ilTime(), sz = ilSize();
+  float amt = ilAmount(), t = ilMusic(), sz = ilSize();
   vec3 col = vec3(0.0);
   float a = 0.0;
   for (int layer = 0; layer < 2; layer++) {
@@ -284,7 +289,7 @@ void mainImage(out vec4 o, in vec2 fc) {
     snowfall: COMMON + `
 void mainImage(out vec4 o, in vec2 fc) {
   vec2 p = ilSpace(fc);
-  float amt = ilAmount(), t = ilTime(), sz = ilSize();
+  float amt = ilAmount(), t = ilMusic(), sz = ilSize();
   float a = 0.0;
   for (int layer = 0; layer < 2; layer++) {
     float fl = float(layer);
@@ -312,7 +317,7 @@ void mainImage(out vec4 o, in vec2 fc) {
     embers: COMMON + `
 void mainImage(out vec4 o, in vec2 fc) {
   vec2 p = ilSpace(fc);
-  float amt = ilAmount(), t = ilTime(), sz = ilSize();
+  float amt = ilAmount(), t = ilMusic(), sz = ilSize();
   vec3 col = vec3(0.0);
   float a = 0.0;
   const float scale = 8.0;
@@ -343,7 +348,7 @@ void mainImage(out vec4 o, in vec2 fc) {
     bokeh: COMMON + `
 void mainImage(out vec4 o, in vec2 fc) {
   vec2 p = ilSpace(fc);
-  float amt = ilAmount(), t = ilTime(), sz = ilSize();
+  float amt = ilAmount(), t = ilMusic(), sz = ilSize();
   vec3 col = vec3(0.0);
   float a = 0.0;
   const float scale = 3.0;
@@ -580,7 +585,8 @@ void mainImage(out vec4 o, in vec2 fc) {
       RESPONSE[settings.response] !== undefined ? RESPONSE[settings.response] : 1,
       0.15 + num(settings.opacity, 1) * 0.85,                            // opacity 0.15 .. 1
     ];
-    // "Music": any overlay swells gently with the music (size and opacity follow loudness and the beat).
+    // "Music": any overlay swells gently with the music (size and opacity follow loudness and the beat), and the
+    // particle overlays move on the music clock (ilMusic: petals fall faster on a kick, snow drifts with the volume).
     // Density never changes, so no particle pops in or out; silence leaves the user's settings as they are.
     const music = !!settings.music && !!window.WavelitAudio;
     const musicStyle = () => {
@@ -602,6 +608,8 @@ void mainImage(out vec4 o, in vec2 fc) {
       overlay: true,
       tint: () => [tint[0], tint[1], tint[2], amount],
       style: music ? musicStyle : () => uniforms,
+      // Audio overlays (resonance, Studio music overlays) always listen; the others only with "Move with the music".
+      music: music || (settings.audioStyle === true),
       passes: [{ type: 'image', code, inputs: [] }],
       params: Array.isArray(settings.params) ? settings.params.slice(0, 4) : undefined,   // Studio sliders
     };
