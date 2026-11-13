@@ -19,7 +19,7 @@ Wavelit stores these files in `%LOCALAPPDATA%\Wavelit` on your computer:
 - the city you pick for day-and-night wallpapers (used only to work out sunrise and sunset on your PC);
 - log files for troubleshooting, kept for 7 days. Logs never contain API keys or prompts (the Studio logs only the number of AI tokens used, so you can see the cost).
 
-Deleting that folder removes all of it. The Microsoft Store version keeps it in the same place (so your library survives reinstalling); delete the folder after uninstalling if you want everything gone.
+Deleting that folder removes all of it. The Microsoft Store version keeps the same files in its package data folder (`%LOCALAPPDATA%\Packages\<Wavelit package>\LocalCache\Local\Wavelit`), which Windows removes when you uninstall the app.
 
 ## The mouse cursor (overlays and interactive wallpapers)
 
@@ -33,11 +33,11 @@ When a **music wallpaper or overlay** is showing (or "Move with the music" is on
 
 The clock, date, greeting and title you put on the desktop are drawn by Wavelit on your PC. The text you type (for example your name in a greeting) is kept only in Wavelit's settings file.
 
-If you choose a taskbar option on the Desktop page (icon alignment, or hiding the taskbar), Wavelit changes Windows' own per-user taskbar settings. It first saves your previous values in `taskbar-original.json` in the same folder, and puts them back when you turn the option off or quit Wavelit (unless you chose "Keep after quitting"). Nothing is injected into Windows Explorer and no administrator rights are used.
+If you choose a taskbar option on the Desktop page (icon alignment), Wavelit changes Windows' own per-user taskbar settings. It first saves your previous values in `taskbar-original.json` in the same folder, and puts them back when you turn the option off or quit Wavelit (unless you chose "Keep after quitting"). Wavelit can also apply a see-through taskbar look by editing the appearance section of **TranslucentTB**'s own settings file (only when you pick a look); your original TranslucentTB settings are saved first, and "Undo my changes" restores them. Nothing is injected into Windows Explorer and no administrator rights are used. The Microsoft Store version doesn't offer these taskbar options, because Windows keeps Store apps from changing other apps' settings.
+
+If you turn on **Start with Windows** in the Store version, Wavelit asks Windows to register its startup task, which you can see and switch off under Settings → Apps → Startup.
 
 ## Reporting AI-made content
-
-Wavelit can also apply a see-through taskbar look by editing the appearance section of **TranslucentTB**'s own settings file (only when you pick a look). Your original TranslucentTB settings are saved first, and "Undo my changes" restores them.
 
 The **Report** button on AI creations opens a pre-filled report on GitHub in your browser. Wavelit itself sends nothing: you see the report and decide whether to submit it, and the prompt and code are included only if you tick the box. Reports on GitHub are public.
 

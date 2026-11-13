@@ -287,6 +287,10 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
 
     // ---------------------------------------------------------------- taskbar
 
+    /// <summary>The Store build can't change Explorer's or TranslucentTB's settings (see <see cref="TaskbarService.IsAvailable"/>).</summary>
+    public bool TaskbarAvailable => TaskbarService.IsAvailable;
+    public bool TaskbarUnavailable => !TaskbarService.IsAvailable;
+
     public Choice? TaskbarAlign
     {
         get => TaskbarAligns.FirstOrDefault(a => a.Value == T.Align);
@@ -327,6 +331,7 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
 
     private void RefreshTranslucentTb()
     {
+        if (!TaskbarAvailable) return;
         var ttb = _taskbar.TranslucentTb;
         TtbInstalled = ttb.IsInstalled;
         TtbRunning = TtbInstalled && TaskbarService.TranslucentTbRunning;

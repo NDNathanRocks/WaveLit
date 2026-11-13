@@ -259,6 +259,11 @@
                                 <ui:SymbolIcon Symbol="WindowWrench24" Margin="0,0,8,0" />
                                 <TextBlock Text="Taskbar" FontSize="16" FontWeight="SemiBold" />
                             </StackPanel>
+                            <!-- Store build: Windows keeps packaged apps from changing Explorer's and other apps' settings. -->
+                            <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Visibility="{Binding TaskbarUnavailable, Converter={StaticResource BoolToVisibility}}"
+                                       Text="The Store version of Wavelit can't change the taskbar: Windows keeps Store apps from editing Explorer's settings. Icon position is in Settings → Personalisation → Taskbar, and TranslucentTB (free, on the Store) makes it clear or glass." />
+                            <StackPanel Visibility="{Binding TaskbarAvailable, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Icons" Style="{StaticResource PanelLabel}" />
                             <ComboBox ItemsSource="{Binding TaskbarAligns}" DisplayMemberPath="Label" SelectedItem="{Binding TaskbarAlign}" AutomationProperties.Name="Taskbar icons" />
 
@@ -308,6 +313,7 @@
                                        Text="{Binding TaskbarProblem}" Visibility="{Binding HasTaskbarProblem, Converter={StaticResource BoolToVisibility}}" />
                             <TextBlock Style="{StaticResource Caption}" Margin="0,12,0,0"
                                        Text="Icon position uses Windows' own setting; no admin rights are needed." />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>

@@ -6,7 +6,7 @@ Paste the following into **Partner Center → Submission → Notes for certifica
 
 Wavelit is a live-wallpaper app. It shows videos, images, animated shaders or web pages *behind the desktop icons*, in place of the static Windows wallpaper.
 
-**How it does this.** At startup Wavelit creates one borderless child window per monitor and parents it into the desktop's wallpaper layer, using the standard `Progman`/`WorkerW` technique that other Store wallpaper apps also use. Those windows are visible wallpaper content. They take no input (clicks go to the desktop icons), aren't hidden from the user, and never cover other apps. Wavelit doesn't inject code into Explorer or any other process, never elevates, and declares only `runFullTrust` and `unvirtualizedResources` (justified below).
+**How it does this.** At startup Wavelit creates one borderless child window per monitor and parents it into the desktop's wallpaper layer, using the standard `Progman`/`WorkerW` technique that other Store wallpaper apps also use. Those windows are visible wallpaper content. They take no input (clicks go to the desktop icons), aren't hidden from the user, and never cover other apps. Wavelit doesn't inject code into Explorer or any other process, never elevates, and declares only `runFullTrust`. Start-with-Windows uses the package's `windows.startupTask` (off until the user turns it on in the app; visible under Settings → Apps → Startup).
 
 **Helper process.** The Studio's Picture tab starts `Wavelit.Create.exe`, which ships inside this package. It sharpens images, and optionally generates them with a local AI model. It runs only while the user is creating and exits after two idle minutes.
 
@@ -43,13 +43,8 @@ Wavelit is a live-wallpaper app. It shows videos, images, animated shaders or we
 **How to test the new features without a key.**
 - *Music:* Discover → search "neon" or "space" → apply **Neon Bars**, **Synthwave Drive** or **Resonant Stardust**, then play any music. In silence they idle calmly. Overlays → **Resonant Stardust**, or turn on "Move with the music" for any overlay.
 - *Studio → Music tab:* pick "Any AI chat (free)", copy the prompt, paste a reply. The preview plays a built-in demo beat; nothing is heard.
-- *Desktop page:* turn on "Widgets on the desktop", pick a theme, then drag the clock in the preview. The real desktop updates. Taskbar: "Centred/Left" uses Windows' own setting and is restored when Wavelit quits. The see-through looks (Clear, Tinted, Glass, Acrylic) only configure TranslucentTB, a separate free Store app, if the user has installed it; Wavelit offers a Store link otherwise and never injects into Explorer.
+- *Desktop page:* turn on "Widgets on the desktop", pick a theme, then drag the clock in the preview. The real desktop updates. Widgets can also lean towards the cursor and pulse with music (both optional). The taskbar section of this page is hidden in the Store build: the source build's taskbar options write Explorer's per-user settings and TranslucentTB's settings file, which MSIX virtualization redirects, so the packaged app explains where to find those settings in Windows instead. Wavelit never injects into Explorer.
 
-**Restricted capability `unvirtualizedResources` (justification).** Wavelit is a desktop personalisation app. At the user's request it changes per-user settings that belong to Windows and to another app:
-- the taskbar icon alignment (`HKCU\…\Explorer\Advanced\TaskbarAl`);
-- start-with-Windows (`HKCU\…\Run`, through the `wavelit.exe` execution alias);
-- TranslucentTB's `settings.json`, for a see-through taskbar (only when the user picks a look).
-
-With MSIX write virtualization these changes would land in a private copy and have no effect. Every change is opt-in, the previous values are saved first, and they are restored when the feature is turned off (the taskbar settings also on quit). Wavelit's own data stays in `%LOCALAPPDATA%\Wavelit`.
+**Capabilities.** `runFullTrust` only. No restricted capabilities are requested; Wavelit's own data stays in its package data folder.
 
 **Privacy.** No telemetry, no account. Network requests go only to the services the user uses (listed in the privacy policy). Privacy policy: https://ndnathanrocks.github.io/WaveLit/privacy-policy

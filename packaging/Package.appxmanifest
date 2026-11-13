@@ -4,18 +4,24 @@
   $IDENTITY_NAME$, $PUBLISHER$, $PUBLISHER_DISPLAY$ and $VERSION$ are filled in by CI (build.yml) with the
   identity reserved in Partner Center → Product identity (NathanDSouza.WaveLit).
 
-  unvirtualizedResources: Wavelit changes per-user settings that belong to Windows and to TranslucentTB
-  (the taskbar's TaskbarAl, the Run key for start-with-Windows, TranslucentTB's settings.json). With MSIX's
-  default write virtualization those writes would land in a private copy and silently do nothing.
+  Capabilities: runFullTrust only. The restricted unvirtualizedResources capability is deliberately not declared:
+  Microsoft rarely grants it to third-party apps and a submission that declares it is usually failed. Without it,
+  MSIX write virtualization redirects this app's writes to the per-user registry and to other apps' AppData into a
+  private copy, so the Store build:
+    - starts with Windows through the StartupTask below (Settings → Apps → Startup), not the Run key;
+    - hides the taskbar-alignment and TranslucentTB options (Packaging.CanChangeSystemSettings in the code);
+    - keeps its own data under the package's LocalCache, which a Store uninstall removes.
+  If Partner Center ever grants the capability, add <rescap:Capability Name="unvirtualizedResources" /> back and the
+  code enables those features by itself (it reads this manifest at run time).
 -->
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
-  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap uap3 desktop desktop6 rescap">
+  IgnorableNamespaces="uap uap3 uap5 desktop rescap">
 
   <Identity Name="$IDENTITY_NAME$" Publisher="$PUBLISHER$" Version="$VERSION$" ProcessorArchitecture="x64" />
 
@@ -24,8 +30,6 @@
     <PublisherDisplayName>$PUBLISHER_DISPLAY$</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
     <Description>Live wallpapers for Windows: videos, GPU shaders, music visualizers and desktop widgets across every monitor.</Description>
-    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
-    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
   </Properties>
 
   <Dependencies>
@@ -59,12 +63,16 @@
             <desktop:ExecutionAlias Alias="wavelit.exe" />
           </uap3:AppExecutionAlias>
         </uap3:Extension>
+        <!-- Start with Windows (Settings → Start with Windows). Off until the user turns it on; Windows shows it in
+             Settings → Apps → Startup. TaskId must match StartupRegistration.TaskId. -->
+        <uap5:Extension Category="windows.startupTask" Executable="Wavelit.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:StartupTask TaskId="WavelitStartup" Enabled="false" DisplayName="Wavelit" />
+        </uap5:Extension>
       </Extensions>
     </Application>
   </Applications>
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
-    <rescap:Capability Name="unvirtualizedResources" />
   </Capabilities>
 </Package>

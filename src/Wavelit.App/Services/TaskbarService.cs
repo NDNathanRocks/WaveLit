@@ -68,8 +68,19 @@ public sealed class TaskbarService : IDisposable
 
     public event EventHandler? StatusChanged;
 
+    /// <summary>
+    /// False in the Store build: MSIX redirects writes to Explorer's per-user settings and to TranslucentTB's file into
+    /// a private copy, so the options would look applied and do nothing. The Desktop page hides them instead.
+    /// </summary>
+    public static bool IsAvailable => Packaging.CanChangeSystemSettings;
+
     public void Start()
     {
+        if (!IsAvailable)
+        {
+            _logger.LogInformation("Taskbar options are off: this build can't change Explorer's settings (MSIX virtualization)");
+            return;
+        }
         _settings.Changed += OnSettingsChanged;
         Apply(_settings.Current.Desktop.Taskbar ?? new());
     }
@@ -78,7 +89,7 @@ public sealed class TaskbarService : IDisposable
 
     private void Apply(TaskbarSettings desired)
     {
-        if (_disposed || desired == _applied) return;
+        if (_disposed || !IsAvailable || desired == _applied) return;
         _applied = desired;
         try
         {
