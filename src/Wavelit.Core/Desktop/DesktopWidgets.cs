@@ -115,10 +115,17 @@ public static class WidgetFonts
 /// <param name="WidgetsOn">Show the widgets on the desktop.</param>
 /// <param name="Theme">The theme the widgets were last reset to (the editor highlights it).</param>
 /// <param name="Taskbar">Taskbar preferences.</param>
+/// <param name="FollowCursor">Widgets lean gently towards the cursor while it is over the desktop (uses the cursor feed; off by default).</param>
+/// <param name="PulseWithMusic">Widgets swell softly on the beat of whatever is playing (uses the audio feed; off by default).</param>
 public sealed record DesktopSettings(bool WidgetsOn = false, string Theme = "halo", IReadOnlyList<DesktopWidget>? Widgets = null,
-    TaskbarSettings? Taskbar = null)
+    TaskbarSettings? Taskbar = null, bool FollowCursor = false, bool PulseWithMusic = false)
 {
     public const int MaxWidgets = 12;
+
+    /// <summary>Widgets are shown and want the cursor.</summary>
+    [JsonIgnore] public bool UsesPointer => WidgetsOn && FollowCursor && Items.Count > 0;
+    /// <summary>Widgets are shown and listen to the music.</summary>
+    [JsonIgnore] public bool UsesAudio => WidgetsOn && PulseWithMusic && Items.Count > 0;
 
     public IReadOnlyList<DesktopWidget> Items => Widgets ?? WidgetThemes.Build("halo");
 

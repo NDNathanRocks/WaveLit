@@ -118,6 +118,20 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
         set => Update(d => d with { WidgetsOn = value }, undoable: false);
     }
 
+    /// <summary>Widgets lean towards the cursor (turns on the cursor feed for the wallpaper window).</summary>
+    public bool FollowCursor
+    {
+        get => D.FollowCursor;
+        set => Update(d => d with { FollowCursor = value }, undoable: false);
+    }
+
+    /// <summary>Widgets swell on the beat (turns on the audio feed while they're visible).</summary>
+    public bool PulseWithMusic
+    {
+        get => D.PulseWithMusic;
+        set => Update(d => d with { PulseWithMusic = value }, undoable: false);
+    }
+
     public string CurrentTheme => D.Theme;
 
     [RelayCommand]
@@ -511,6 +525,8 @@ public sealed partial class DesktopViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         OnPropertyChanged(nameof(WidgetsOn));
+        OnPropertyChanged(nameof(FollowCursor));
+        OnPropertyChanged(nameof(PulseWithMusic));
         OnPropertyChanged(nameof(CurrentTheme));
         OnPropertyChanged(nameof(TaskbarAlign));
         OnPropertyChanged(nameof(TaskbarAutoHide));

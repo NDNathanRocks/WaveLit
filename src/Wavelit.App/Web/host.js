@@ -443,16 +443,20 @@
 
   // Widgets show over any wallpaper (not on a blank window), and are rebuilt when they or the window change.
   function syncWidgets(force) {
-    const list = current && options.widgets && Array.isArray(options.widgets.items) ? options.widgets.items : [];
+    const w = options.widgets || {};
+    const list = current && Array.isArray(w.items) ? w.items : [];
     const px = getPixelSize();
     const k = px.width / Math.max(1, window.innerWidth);
-    const key = list.length ? JSON.stringify(list) + '|' + k : null;
+    const motion = { follow: !!w.follow, pulse: !!w.pulse };
+    const key = list.length ? JSON.stringify(list) + '|' + k + '|' + motion.follow + motion.pulse : null;
     if (!force && key === widgetsKey) return;
     widgetsKey = key;
     if (widgets) widgets.dispose();
     widgets = null;
     if (!list.length || !window.WavelitWidgets) return;
-    widgets = window.WavelitWidgets.render(list, document.body, k);
+    // Motion (lean to the cursor, pulse with the music) needs the view to map the cursor into this window.
+    widgets = window.WavelitWidgets.render(list, document.body, k, { motion, getView });
+    if (paused) widgets.pause();
   }
 
   // ---------------------------------------------------------------- commands
@@ -543,11 +547,13 @@
           setPaused(true);
           if (current) current.pause();
           if (interactive) interactive.stop();
+          if (widgets) widgets.pause();
           break;
         case 'resume':
           setPaused(false);
           if (current) current.resume();
           if (interactive) interactive.start();
+          if (widgets) widgets.resume();
           break;
         case 'pointer':
           if (window.WavelitPointer) window.WavelitPointer.update(msg);

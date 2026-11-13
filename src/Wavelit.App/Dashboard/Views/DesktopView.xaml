@@ -251,6 +251,31 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Motion: the widgets react a little, like the overlays do -->
+                    <Border Margin="0,14,0,0" CornerRadius="10" Padding="16,12,16,16" BorderThickness="1"
+                            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="CursorHover24" Margin="0,0,8,0" />
+                                <TextBlock Text="Alive" FontSize="16" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <Grid Margin="0,12,0,0">
+                                <StackPanel Margin="0,0,60,0">
+                                    <TextBlock Text="Lean towards the cursor" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="A gentle tilt of a few pixels as your mouse crosses the desktop; nothing moves while an app is in front." />
+                                </StackPanel>
+                                <ui:ToggleSwitch HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding FollowCursor}" AutomationProperties.Name="Widgets lean towards the cursor" />
+                            </Grid>
+                            <Grid Margin="0,12,0,0">
+                                <StackPanel Margin="0,0,60,0">
+                                    <TextBlock Text="Pulse with the music" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="A soft swell on each beat of whatever your PC plays. Never the microphone; nothing is recorded." />
+                                </StackPanel>
+                                <ui:ToggleSwitch HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding PulseWithMusic}" AutomationProperties.Name="Widgets pulse with the music" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Taskbar -->
                     <Border Margin="0,14,0,0" CornerRadius="10" Padding="16,12,16,16" BorderThickness="1"
                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
