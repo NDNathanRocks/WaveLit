@@ -1,6 +1,6 @@
 # Wavelit Privacy Policy
 
-_Last updated: 26 October 2026_
+_Last updated: 13 November 2026_
 
 Wavelit is a live-wallpaper app for Windows. This policy explains what data it handles.
 
@@ -31,7 +31,7 @@ When a **music wallpaper or overlay** is showing (or "Move with the music" is on
 
 ## Desktop widgets and the taskbar
 
-The clock, date, greeting and title you put on the desktop are drawn by Wavelit on your PC. The text you type (for example your name in a greeting) is kept only in Wavelit's settings file.
+The clock, date, greeting and title you put on the desktop are drawn by Wavelit on your PC. The text you type (for example your name in a greeting) is kept only in Wavelit's settings file. If you turn on "Lean towards the cursor" or "Pulse with the music" on the Desktop page, the widgets use the same cursor position and music analysis described above, under the same rules: only while visible, only over the bare desktop, nothing recorded or sent.
 
 If you choose a taskbar option on the Desktop page (icon alignment), Wavelit changes Windows' own per-user taskbar settings. It first saves your previous values in `taskbar-original.json` in the same folder, and puts them back when you turn the option off or quit Wavelit (unless you chose "Keep after quitting"). Wavelit can also apply a see-through taskbar look by editing the appearance section of **TranslucentTB**'s own settings file (only when you pick a look); your original TranslucentTB settings are saved first, and "Undo my changes" restores them. Nothing is injected into Windows Explorer and no administrator rights are used. The Microsoft Store version doesn't offer these taskbar options, because Windows keeps Store apps from changing other apps' settings.
 

@@ -27,10 +27,10 @@ Free and open source. No account, no telemetry, and ~0% GPU whenever you can't s
 | | |
 |---|---|
 | 🎵 **Music visualizers** | Synthwave Drive, Neon Bars and Resonant Stardust follow whatever your PC is playing (never the microphone), idle calmly in silence, and never flash. Any overlay can also move with the music. |
-| ✨ **Overlays** | Stardust, fireflies, petals, snow, embers, aurora and more, layered over any wallpaper and reacting gently to your cursor. |
-| 🕰️ **Desktop widgets** | A Rainmeter-style clock, date, greeting and title drawn right on the wallpaper, under your icons. Six themes, plus a drag-and-drop editor with snapping. |
+| ✨ **Overlays** | Stardust, fireflies, petals, snow, embers, aurora and more, layered over any wallpaper and reacting gently to your cursor. Turn on "Move with the music" and petals fall faster on every kick. |
+| 🕰️ **Desktop widgets** | A Rainmeter-style clock, date, greeting and title drawn right on the wallpaper, under your icons. Six themes, a drag-and-drop editor with snapping, and optional life: they lean towards your cursor and pulse with the beat. |
 | 🪟 **Taskbar** | Centred or left icons, and a clear, tinted, glass or acrylic taskbar through [TranslucentTB](https://github.com/TranslucentTB/TranslucentTB). Your own settings come back with one click. |
-| 🤖 **Studio** | Describe a live wallpaper, overlay or visualizer and an AI writes it as a shader. Wavelit checks it for safety and speed on your own GPU before you see it, then gives you sliders to tweak it. Bring your own Claude key, use a free Cloudflare account, or paste from any chat AI. |
+| 🎨 **Studio** | Pick what you want to make: a live wallpaper, an overlay or a picture. Build an overlay in the **Overlay Designer** from choices alone (shape, motion, cursor, music; no key or account), or describe anything in words and an AI writes it as a shader. Everything is checked for safety and speed on your own GPU before you see it, with sliders to tweak it. Bring your own Claude key, use a free Cloudflare account, or paste from any chat AI. |
 | 🖼️ **Create pictures** | Wallpapers shaped exactly like your screens, generated on your own GPU (private, unlimited) or in the cloud, then sharpened to full resolution. |
 | 🌍 **Discover** | Wallhaven, NASA space videos and Openverse with no keys, plus Pixabay, Pexels and Shadertoy with free keys. Your own videos, images, web pages and Shadertoy-style shaders work too. |
 | 🌗 **Smart** | Day and night wallpapers switched at your local sunrise and sunset, wallpapers remembered for each monitor setup, and seamless crossfaded video loops. |
@@ -92,7 +92,9 @@ Logs, settings and the cache live in `%LOCALAPPDATA%\Wavelit`.
 
 ## Optional free keys
 
-Wavelit works without any key: the built-in wallpapers, visualizers and widgets, Wallhaven, NASA and Openverse, local AI, the Studio's copy-paste mode, and your own files.
+Wavelit works without any key: the built-in wallpapers, visualizers and widgets, the Overlay Designer, Wallhaven, NASA and Openverse, local AI, the Studio's copy-paste mode, and your own files.
+
+The Microsoft Store build declares only `runFullTrust`. Because Windows virtualizes a packaged app's writes to Explorer's settings, the Store build hides the taskbar options and uses a Windows startup task (Settings → Apps → Startup) for start-with-Windows; the source build has both.
 
 - **Pixabay** (instant): sign up at [pixabay.com](https://pixabay.com/accounts/register/) and copy your key from [the API docs](https://pixabay.com/api/docs/). Paste it in *Settings → Pixabay videos*.
 - **Cloudflare Workers AI** (free daily allowance): copy your Account ID and create an API token with the "Workers AI" template. Paste both in *Settings → Cloudflare*.
