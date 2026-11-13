@@ -110,22 +110,23 @@ public sealed record OverlayDesign(
             "fall" => "vec2(0.25, -1.0)",
             _ => "vec2(0.0, 0.0)",
         };
-        string frame = d.Motion == "swirl" ? "ilRot(-t * 0.03 * (1.0 + 0.4 * fl)) * p" : "p";
-        string cursor = d.Cursor switch
+        // "Swirl around the centre" rotates the particle field (fa = frame angle); the cursor lives in the unrotated
+        // space, so cursor effects are applied to the particle's world position (wp) and rotated back.
+        string frameAngle = d.Motion == "swirl" ? "-t * 0.03 * (1.0 + 0.4 * fl)" : "0.0";
+        string cursorBody = d.Cursor switch
         {
-            "part" => "pos += ilPush(pos, 0.14, 0.6 / scale);",
+            "part" => "wp += ilPush(wp, 0.14, 0.6 / scale);",
             "gather" => """
-                {
-                  vec2 c = ilPtr();
-                  float pull = ilPresence() * exp(-dot(pos - c, pos - c) / 0.04);
+                vec2 c = ilPtr();
+                  float pull = ilPresence() * exp(-dot(wp - c, wp - c) / 0.04);
                   float ang = t * (0.5 + 0.6 * h) + h * 6.2831;
                   vec2 orbit = c + (0.03 + 0.05 * h) * vec2(cos(ang), sin(ang));
-                  pos = mix(pos, orbit, clamp(pull * 0.9, 0.0, 0.9));
-                }
+                  wp = mix(wp, orbit, clamp(pull * 0.9, 0.0, 0.9));
                 """,
-            "swirl" => "pos = ilSwirl(pos, 0.12, 1.4 * min(ilResponse(), 1.5)); pos += ilPush(pos, 0.1, 0.4 / scale);",
+            "swirl" => "wp = ilSwirl(wp, 0.12, 1.4 * min(ilResponse(), 1.5)); wp += ilPush(wp, 0.1, 0.4 / scale);",
             _ => "",
         };
+        string cursor = cursorBody.Length == 0 ? "" : "{ vec2 wp = ilRot(-fa) * pos; " + cursorBody + " pos = ilRot(fa) * wp; }";
         string shape = d.Shape switch
         {
             "petal" => "float cov = smoothstep(1.0, 0.55, length(q / vec2(1.0, 0.55 + 0.25 * sin(t * 1.3 + h * 9.0)))); hi = smoothstep(1.0, 0.0, length(q)) * 0.25;",
@@ -165,7 +166,8 @@ public sealed record OverlayDesign(
               for (int layer = 0; layer < 2; layer++) {
                 float fl = float(layer);
                 float scale = 4.5 + fl * 3.0;
-                vec2 fr = {{frame}};
+                float fa = {{frameAngle}};
+                vec2 fr = ilRot(fa) * p;
                 vec2 motion = {{velocity}} * t * (0.045 + fl * 0.02);
                 vec2 id = floor((fr - motion) * scale);
                 for (int y = -1; y <= 1; y++)

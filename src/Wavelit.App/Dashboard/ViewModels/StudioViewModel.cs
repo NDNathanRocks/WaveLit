@@ -352,7 +352,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         Message = null;
         if (value == StudioMode.Picture) Picture.Activate();
         if (IsDesigning) RequestDesign();
-        else if (!_loadingEntry && Current is { } c && c.Kind != Kind) Current = null;   // a wallpaper result doesn't belong on the overlay path
+        else if (!_loadingEntry && IsShaderTab && Current is { } c && c.Kind != Kind) Current = null;   // a wallpaper result doesn't belong on the overlay path
         else _ = ShowCurrentAsync();
     }
 
@@ -578,13 +578,20 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
             string? previous = _keptDesignOverlayId;
             Keep(draft, check.Report!, request, OverlayDesign.Author, parentId: null, design);
             var (id, overlay) = GeneratedShaders.CreateOverlay(_services.Paths, CurrentWithParams!);
+            string? replacedThumb = null;
             Context.Settings.Update(s =>
             {
                 var custom = new Dictionary<string, CustomOverlay>(s.CustomOverlays);
-                if (previous is not null && previous != id && s.Interactive.Style == previous) custom.Remove(previous);
+                if (previous is not null && previous != id && s.Interactive.Style == previous && custom.Remove(previous, out var old))
+                    replacedThumb = old.ThumbnailPath;
                 custom[id] = overlay;
                 return s with { CustomOverlays = custom, Interactive = s.Interactive with { Style = id } };
             });
+            if (replacedThumb is not null && replacedThumb != overlay.ThumbnailPath
+                && Path.GetFullPath(replacedThumb).StartsWith(_services.Paths.Creations + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                try { File.Delete(replacedThumb); } catch (IOException) { }
+            }
             _keptDesignOverlayId = id;
             Context.Notify("Overlay on", $"“{overlay.Title}” is over your wallpaper. Keep tweaking here, or fine-tune it on the Overlays page.", NoticeLevel.Success);
         }

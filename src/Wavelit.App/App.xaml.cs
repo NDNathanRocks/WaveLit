@@ -87,11 +87,12 @@ public partial class App : Application
         var wallpapers = _services.GetRequiredService<WallpaperService>();
         _tray = new TrayService(wallpapers, _services.GetRequiredService<LibraryStore>(), OpenDashboard, () => _ = QuitAsync());
         bool startWithWindows = settings.Current.StartWithWindows;
+        // Settings change on any thread; the tray notification belongs on the UI thread.
         settings.Changed += (_, s) =>
         {
             if (s.StartWithWindows == startWithWindows) return;
             startWithWindows = s.StartWithWindows;
-            _ = ApplyStartupAsync(s.StartWithWindows, notify: true);
+            Dispatcher.BeginInvoke(() => _ = ApplyStartupAsync(s.StartWithWindows, notify: true));
         };
         _ = ApplyStartupAsync(startWithWindows, notify: false);
         wallpapers.Error += (_, message) => _tray.Notify("Wavelit", message);

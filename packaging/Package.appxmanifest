@@ -18,10 +18,9 @@
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
-  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap uap3 uap5 desktop rescap">
+  IgnorableNamespaces="uap uap3 desktop rescap">
 
   <Identity Name="$IDENTITY_NAME$" Publisher="$PUBLISHER$" Version="$VERSION$" ProcessorArchitecture="x64" />
 
@@ -65,9 +64,9 @@
         </uap3:Extension>
         <!-- Start with Windows (Settings → Start with Windows). Off until the user turns it on; Windows shows it in
              Settings → Apps → Startup. TaskId must match StartupRegistration.TaskId. -->
-        <uap5:Extension Category="windows.startupTask" Executable="Wavelit.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap5:StartupTask TaskId="WavelitStartup" Enabled="false" DisplayName="Wavelit" />
-        </uap5:Extension>
+        <desktop:Extension Category="windows.startupTask" Executable="Wavelit.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="WavelitStartup" Enabled="false" DisplayName="Wavelit" />
+        </desktop:Extension>
       </Extensions>
     </Application>
   </Applications>
