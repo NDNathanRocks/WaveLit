@@ -28,6 +28,10 @@ public sealed record StudioEntry
     public ShaderRecipe? Recipe { get; init; }
     /// <summary>How it reacts to music (Audio tab), if it does.</summary>
     public MusicReaction? Music { get; init; }
+    /// <summary>The Overlay Designer choices it was built from (opening it restores the designer), if any.</summary>
+    public OverlayDesign? Design { get; init; }
+    /// <summary>Made by the Overlay Designer (choices, no AI): never labelled "Made with AI".</summary>
+    public bool IsDesigned => Model == OverlayDesign.Author;
     /// <summary>Slider values the user chose (null = the shader's defaults).</summary>
     public double[]? Params { get; init; }
 
@@ -125,7 +129,7 @@ public static class GeneratedShaders
             Author = AuthorLine(entry.Model),
             ShaderCode = entry.Code,
             Prompt = entry.Prompt,
-            MadeWith = entry.Model is "" or "pasted" ? "ai-chat" : entry.Model,
+            MadeWith = MadeWith(entry.Model),
             ThumbnailPath = copyThumbnail ? CopyThumbnail(paths, entry.ThumbnailPath, id) : null,
         };
     }
@@ -135,11 +139,20 @@ public static class GeneratedShaders
     {
         string id = OverlayId(entry);
         return (id, new CustomOverlay(entry.Title, entry.Code, entry.UsesPointer, CopyThumbnail(paths, entry.ThumbnailPath, id), entry.Prompt,
-            entry.Params, entry.Model is "" or "pasted" ? "ai-chat" : entry.Model));
+            entry.Params, MadeWith(entry.Model)));
     }
+
+    /// <summary>Provenance for the "Made with AI" label: null for the Overlay Designer (no AI involved).</summary>
+    public static string? MadeWith(string model) => model switch
+    {
+        OverlayDesign.Author => null,
+        "" or "pasted" => "ai-chat",
+        _ => model,
+    };
 
     public static string AuthorLine(string model) => model switch
     {
+        OverlayDesign.Author => "You, in the Overlay Designer",
         "" or "pasted" => "You, with an AI chat",
         _ when model.StartsWith("claude-", StringComparison.Ordinal) => "You, with Claude",
         _ => "You, with " + model,

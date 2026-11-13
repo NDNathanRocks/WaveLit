@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Wavelit headless harness</title>
+  <style>html, body { margin: 0; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+  <!-- chrome.webview stub so the real Web/*.js load as they do inside WebView2 (messages are collected, not sent). -->
+  <script>
+    window.__posted = [];
+    window.chrome = { webview: { postMessage: (m) => window.__posted.push(m), addEventListener: () => {} } };
+  </script>
+  <script src="../../src/Wavelit.App/Web/pointer.js"></script>
+  <script src="../../src/Wavelit.App/Web/audio.js"></script>
+  <script src="../../src/Wavelit.App/Web/shader-runtime.js"></script>
+  <script src="../../src/Wavelit.App/Web/interact.js"></script>
+  <script>
+    // Compiles an overlay (the shared helpers plus `code`), renders a few frames at `size`, and reports whether it
+    // drew anything. Pointer and audio are busy so every code path runs.
+    window.checkOverlay = function (code, size) {
+      const Interactive = window.WavelitInteractive;
+      const canvas = document.createElement('canvas');
+      const view = () => ({
+        canvas: { width: size, height: size }, viewport: { x: 0, y: 0, width: size, height: size },
+        focus: { x: size / 2, y: size / 2, size },
+      });
+      const program = {
+        name: 'check', overlay: true, tint: () => [1, 0.9, 0.8, 0.6], style: () => [1.1, 1, 1.4, 1],
+        passes: [{ type: 'common', code: Interactive.common }, { type: 'image', code, inputs: [] }],
+      };
+      const realPointer = window.WavelitPointer, realAudio = window.WavelitAudio;
+      window.WavelitPointer = {
+        isActive: () => true,
+        sample: () => {
+          const trail = new Float32Array(64);
+          for (let i = 0; i < 16; i++) { trail[i * 4] = size * (0.3 + 0.02 * i); trail[i * 4 + 1] = size * 0.5; trail[i * 4 + 2] = i * 0.08; trail[i * 4 + 3] = 0.8; }
+          return { pointer: [size * 0.55, size * 0.5, 1, 0.6], click: [size * 0.5, size * 0.5, 0.4, 1], trail, mouse: [size * 0.5, size * 0.5, 0, 0] };
+        },
+      };
+      const spectrum = new Float32Array(64).fill(0.7), peaks = new Float32Array(64).fill(0.9);
+      window.WavelitAudio = { sample: () => ({ audio: [0.8, 0.7, 0.6, 0.75], beat: [0.8, 0.1, 120, 10], spectrum, peaks, centroid: 0.5, presence: 1, music: [12.5, 1.8, 0.8, 1] }), isActive: () => true };
+      let rt;
+      try {
+        rt = new window.WavelitShaderRuntime(canvas, program, () => ({ fps: 60, scale: 1 }), () => ({ width: size, height: size }), view, () => 0);
+        const gl = rt.gl;
+        const px = new Uint8Array(size * size * 4);
+        let alpha = 0, nan = false;
+        for (const t of [3.7, 41.3, 911.4]) {
+          rt.time = t;
+          rt.render(1 / 60);
+          gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, px);
+          for (let i = 3; i < px.length; i += 4) if (px[i] > alpha) alpha = px[i];
+        }
+        return { ok: true, alpha, usesAudio: rt.usesAudio, usesPointer: rt.usesPointer };
+      } catch (err) {
+        return { ok: false, error: String(err && err.message || err) };
+      } finally {
+        if (rt) rt.dispose();
+        window.WavelitPointer = realPointer;
+        window.WavelitAudio = realAudio;
+      }
+    };
+  </script>
+</body>
+</html>
