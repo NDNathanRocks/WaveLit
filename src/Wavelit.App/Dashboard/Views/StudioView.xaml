@@ -16,6 +16,79 @@
             <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
+        <Style x:Key="DesignLabel" TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+            <Setter Property="Margin" Value="0,10,0,4" />
+        </Style>
+        <!-- The three "what do you want to make?" cards -->
+        <Style x:Key="ModeCard" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="0,0,16,16" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Card" Width="268" Height="188" CornerRadius="12" BorderThickness="1.5" Padding="20,18"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                                <Setter TargetName="Card" Property="Background" Value="{DynamicResource CardBackgroundFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource FocusStrokeColorOuterBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <DataTemplate x:Key="HistoryTile" DataType="{x:Type vm:StudioHistoryItem}">
+            <Button Margin="0,0,8,8" Padding="0" Width="108" Height="61" ToolTip="{Binding Tooltip}" Cursor="Hand"
+                    AutomationProperties.Name="{Binding Entry.Title}"
+                    Command="{Binding DataContext.OpenHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                    CommandParameter="{Binding}">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border CornerRadius="6" ClipToBounds="True" BorderThickness="1" x:Name="Frame"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                Background="{DynamicResource CardBackgroundFillColorSecondaryBrush}">
+                            <Grid>
+                                <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
+                                <TextBlock Text="{Binding Entry.Title}" FontSize="10" Margin="5,0,5,3" VerticalAlignment="Bottom"
+                                           Foreground="White" TextTrimming="CharacterEllipsis">
+                                    <TextBlock.Effect>
+                                        <DropShadowEffect BlurRadius="4" ShadowDepth="0" Opacity="0.9" />
+                                    </TextBlock.Effect>
+                                </TextBlock>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource FocusStrokeColorOuterBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Remix (load its idea and options)"
+                                  Command="{Binding PlacementTarget.Tag.RemixCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding}" />
+                        <MenuItem Header="Remove from history"
+                                  Command="{Binding PlacementTarget.Tag.RemoveHistoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                  CommandParameter="{Binding}" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+                <Button.Tag>
+                    <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                </Button.Tag>
+            </Button>
+        </DataTemplate>
     </UserControl.Resources>
 
     <Grid Margin="28,20,28,16">
@@ -24,14 +97,64 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Header and tabs -->
+        <!-- Header: the page title on the chooser, otherwise a back button and the path's name -->
         <StackPanel Grid.Row="0">
-            <TextBlock Text="Studio" Style="{StaticResource PageTitle}" />
-            <TextBlock Text="Describe a wallpaper and Wavelit makes it: a picture, a live wallpaper or an overlay, shaped to your screens."
-                       Style="{StaticResource PageSubtitle}" />
-            <ListBox Style="{StaticResource ChipRow}" Margin="0,14,0,14" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}"
-                     AutomationProperties.Name="What to make" />
+            <StackPanel Visibility="{Binding IsChoosing, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="Studio" Style="{StaticResource PageTitle}" />
+                <TextBlock Text="Make something of your own. Pick what you want: each path shows only what it needs, and nothing changes on your desktop until you say so."
+                           Style="{StaticResource PageSubtitle}" TextWrapping="Wrap" />
+            </StackPanel>
+            <DockPanel Margin="0,0,0,12" Visibility="{Binding IsChoosing, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
+                <ui:Button DockPanel.Dock="Left" Icon="{ui:SymbolIcon ArrowLeft24}" Content="Studio" Appearance="Secondary" Command="{Binding BackCommand}"
+                           ToolTip="Back to the Studio's choices" AutomationProperties.Name="Back to Studio" VerticalAlignment="Center" />
+                <TextBlock DockPanel.Dock="Left" Text="{Binding ModeTitle}" Style="{StaticResource PageTitle}" Margin="14,0,0,0" VerticalAlignment="Center" />
+                <!-- Overlay: two ways to get one -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Visibility="{Binding IsOverlayMode, Converter={StaticResource BoolToVisibility}}">
+                    <RadioButton Content="Design it" GroupName="OverlayWay" IsChecked="{Binding IsDesigning, Mode=OneWay}" Margin="0,0,10,0"
+                                 Command="{Binding ChooseOverlayWayCommand}" CommandParameter="{x:Static vm:OverlayWay.Design}"
+                                 ToolTip="Build an overlay from choices. No key or account needed." />
+                    <RadioButton Content="Describe it to an AI" GroupName="OverlayWay" IsChecked="{Binding IsDesigning, Mode=OneWay, Converter={StaticResource InverseBool}}"
+                                 Command="{Binding ChooseOverlayWayCommand}" CommandParameter="{x:Static vm:OverlayWay.Describe}"
+                                 ToolTip="Describe it in words and an AI writes it (your key, a free Cloudflare account, or copy-paste with any chat AI)." />
+                </StackPanel>
+            </DockPanel>
         </StackPanel>
+
+        <!-- Chooser -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="{Binding IsChoosing, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel Margin="0,16,0,0">
+                <ItemsControl ItemsSource="{Binding ModeCards}" Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:StudioModeCard}">
+                            <Button Style="{StaticResource ModeCard}" AutomationProperties.Name="{Binding Title}"
+                                    Command="{Binding DataContext.ChooseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding Mode}">
+                                <StackPanel>
+                                    <ui:SymbolIcon Symbol="{Binding Icon}" FontSize="30" HorizontalAlignment="Left" Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                                    <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,4" />
+                                    <TextBlock Text="{Binding Blurb}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock Text="{Binding Footnote}" TextWrapping="Wrap" Style="{StaticResource Caption}" Margin="0,8,0,0" />
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Style="{StaticResource Caption}" Margin="0,2,0,0" TextWrapping="Wrap"
+                           Text="Everything here is checked on your own graphics card before you see it. AI paths need your own key or a free account, or you can copy a prompt into any chat AI; the Overlay Designer and pictures with Quick try need nothing at all." />
+                <StackPanel Margin="0,20,0,0" Visibility="{Binding HasHistory, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock Text="Your creations" Style="{StaticResource SectionHeader}" Margin="0,0,0,8" />
+                    <ItemsControl ItemsSource="{Binding History}" ItemTemplate="{StaticResource HistoryTile}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
 
         <!-- Picture: the image generators -->
         <ContentControl Grid.Row="1" Content="{Binding Picture}" Focusable="False"
@@ -40,19 +163,106 @@
         <!-- Live wallpaper / Overlay -->
         <Grid Grid.Row="1" Visibility="{Binding IsShaderTab, Converter={StaticResource BoolToVisibility}}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="372" />
                 <ColumnDefinition Width="20" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Left: describe, options, refine, history -->
+            <!-- Left: designer or describe, refine, history -->
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Padding="0,0,6,0">
                 <StackPanel>
-                    <Border Style="{StaticResource CardBorder}">
+
+                    <!-- ============ Overlay Designer: choices, no key ============ -->
+                    <Border Style="{StaticResource CardBorder}" Visibility="{Binding IsDesigning, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <DockPanel>
+                                <ui:Button DockPanel.Dock="Right" Content="Surprise me" Icon="{ui:SymbolIcon Lightbulb24}" Appearance="Secondary" Padding="9,4"
+                                           Command="{Binding SurpriseDesignCommand}" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding DesignTitle}" FontWeight="SemiBold" FontSize="15" />
+                                    <TextBlock Text="{Binding DesignDescription}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
+
+                            <TextBlock Text="What falls" Style="{StaticResource DesignLabel}" />
+                            <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.DesignShapes}" SelectedItem="{Binding DesignShape}"
+                                     AutomationProperties.Name="Shape">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource ChipItemStyle}">
+                                        <Setter Property="Margin" Value="0,0,0,6" />
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+
+                            <TextBlock Text="How it moves" Style="{StaticResource DesignLabel}" Margin="0,4,0,4" />
+                            <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.DesignMotions}" SelectedItem="{Binding DesignMotion}"
+                                     AutomationProperties.Name="Motion">
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource ChipItemStyle}">
+                                        <Setter Property="Margin" Value="0,0,0,6" />
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+
+                            <TextBlock Text="Your cursor" Style="{StaticResource DesignLabel}" Margin="0,4,0,4" />
+                            <ComboBox ItemsSource="{x:Static vm:StudioViewModel.DesignCursors}" DisplayMemberPath="Label" SelectedItem="{Binding DesignCursor}"
+                                      AutomationProperties.Name="Cursor" />
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="How many" Style="{StaticResource Caption}" />
+                                    <Slider Minimum="0" Maximum="100" Value="{Binding DesignDensity, Delay=60}" AutomationProperties.Name="How many" />
+                                    <TextBlock Text="Speed" Style="{StaticResource Caption}" Margin="0,6,0,0" />
+                                    <Slider Minimum="0" Maximum="100" Value="{Binding DesignSpeed, Delay=60}" AutomationProperties.Name="Speed" />
+                                    <TextBlock Text="Wavering" Style="{StaticResource Caption}" Margin="0,6,0,0" />
+                                    <Slider Minimum="0" Maximum="100" Value="{Binding DesignWind, Delay=60}" AutomationProperties.Name="Wavering" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Size" Style="{StaticResource Caption}" />
+                                    <Slider Minimum="0" Maximum="100" Value="{Binding DesignSize, Delay=60}" AutomationProperties.Name="Size" />
+                                    <TextBlock Text="Twinkle" Style="{StaticResource Caption}" Margin="0,6,0,0" />
+                                    <Slider Minimum="0" Maximum="100" Value="{Binding DesignTwinkle, Delay=60}" AutomationProperties.Name="Twinkle" />
+                                    <TextBlock Text="Glow" Style="{StaticResource Caption}" Margin="0,6,0,0" />
+                                    <Slider Minimum="0" Maximum="100" Value="{Binding DesignGlow, Delay=60}" AutomationProperties.Name="Glow" />
+                                </StackPanel>
+                            </Grid>
+
+                            <DockPanel Margin="0,12,0,0">
+                                <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding MusicOn}" AutomationProperties.Name="Moves to the music" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Moves to the music" FontWeight="SemiBold" />
+                                    <TextBlock Text="Falls faster on the beat and glows with the volume. The preview plays a demo beat." Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
+                            <TextBlock Style="{StaticResource Caption}" Margin="0,10,0,0" TextWrapping="Wrap"
+                                       Text="Colour comes from the Overlays page (Natural uses the overlay's own light). The preview on the right follows every change." />
+
+                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                <ui:Button Appearance="Primary" Content="Keep this overlay" Icon="{ui:SymbolIcon Checkmark24}" Padding="18,8"
+                                           Command="{Binding KeepDesignCommand}" ToolTip="Checks it on your graphics card, saves it and turns it on over your wallpaper" />
+                                <ui:Button Content="Stop" Margin="8,0,0,0" Command="{Binding CancelCommand}"
+                                           Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                            <StackPanel Margin="0,12,0,0" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
+                                <ProgressBar Height="4" IsIndeterminate="True" />
+                                <TextBlock Margin="0,6,0,0" Text="{Binding Stage}" Style="{StaticResource Caption}" />
+                            </StackPanel>
+                            <TextBlock Margin="0,10,0,0" Text="{Binding Message}" TextWrapping="Wrap"
+                                       Visibility="{Binding Message, Converter={StaticResource NotEmptyToVisibility}}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ============ Describe it (AI) ============ -->
+                    <Border Style="{StaticResource CardBorder}" Visibility="{Binding IsDescribing, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
                             <DockPanel Margin="0,0,0,10">
-                                <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding UseRecipe}" OnContent="Recipe" OffContent="Free writing"
-                                                 AutomationProperties.Name="Use a recipe" ToolTip="A fill-in sentence with suggestions, or write it in your own words" />
+                                <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding UseRecipe}" OnContent="Recipe" OffContent="Your words"
+                                                 AutomationProperties.Name="Use a recipe" ToolTip="Write it in your own words, or fill in a sentence with suggestions" />
                                 <TextBlock Text="Describe it" FontWeight="SemiBold" VerticalAlignment="Center" />
                             </DockPanel>
 
@@ -98,31 +308,38 @@
 
                             <!-- Free writing -->
                             <StackPanel Visibility="{Binding UseRecipe, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
-                            <ui:TextBox Text="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}" MaxLength="400"
-                                        PlaceholderText="{Binding Placeholder}" TextWrapping="Wrap" AcceptsReturn="False"
-                                        MinHeight="76" VerticalContentAlignment="Top"
-                                        AutomationProperties.Name="Describe it">
-                                <ui:TextBox.InputBindings>
-                                    <KeyBinding Key="Enter" Command="{Binding CreateCommand}" />
-                                </ui:TextBox.InputBindings>
-                            </ui:TextBox>
-                            <TextBlock Text="{Binding PromptHint}" Style="{StaticResource Caption}" Margin="0,6,0,0"
-                                       Visibility="{Binding PromptHint, Converter={StaticResource NotEmptyToVisibility}}" />
-                            <ItemsControl ItemsSource="{Binding Ideas}" Margin="0,8,0,0" Focusable="False">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <ui:Button Content="{Binding}" Margin="0,0,6,6" Padding="9,3" FontSize="11.5" Appearance="Secondary"
-                                                   Command="{Binding DataContext.UseIdeaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                                   CommandParameter="{Binding}" />
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
+                                <ui:TextBox Text="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}" MaxLength="400"
+                                            PlaceholderText="{Binding Placeholder}" TextWrapping="Wrap" AcceptsReturn="False"
+                                            MinHeight="76" VerticalContentAlignment="Top"
+                                            AutomationProperties.Name="Describe it">
+                                    <ui:TextBox.InputBindings>
+                                        <KeyBinding Key="Enter" Command="{Binding CreateCommand}" />
+                                    </ui:TextBox.InputBindings>
+                                </ui:TextBox>
+                                <TextBlock Text="{Binding PromptHint}" Style="{StaticResource Caption}" Margin="0,6,0,0"
+                                           Visibility="{Binding PromptHint, Converter={StaticResource NotEmptyToVisibility}}" />
+                                <ItemsControl ItemsSource="{Binding Ideas}" Margin="0,8,0,0" Focusable="False">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <ui:Button Content="{Binding}" Margin="0,0,6,6" Padding="9,3" FontSize="11.5" Appearance="Secondary"
+                                                       Command="{Binding DataContext.UseIdeaCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                       CommandParameter="{Binding}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
                             </StackPanel>
 
-                            <!-- Music tab -->
+                            <!-- Music: an option, not a separate place -->
+                            <DockPanel Margin="0,12,0,0">
+                                <ui:ToggleSwitch DockPanel.Dock="Right" IsChecked="{Binding MusicOn}" AutomationProperties.Name="Reacts to music" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Reacts to music" FontWeight="SemiBold" />
+                                    <TextBlock Text="Follows whatever your PC plays (never the microphone) and idles calmly in silence." Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
                             <StackPanel Visibility="{Binding IsAudioTab, Converter={StaticResource BoolToVisibility}}">
                                 <TextBlock Text="Reacts to" Style="{StaticResource Caption}" Margin="0,8,0,4" />
                                 <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.ReactsToChoices}"
@@ -130,30 +347,42 @@
                                 <TextBlock Text="By" Style="{StaticResource Caption}" Margin="0,6,0,4" />
                                 <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.ReactsByChoices}"
                                          SelectedItem="{Binding SelectedReactsBy}" AutomationProperties.Name="Reacts by" />
-                                <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0"
-                                           Text="The preview plays a built-in demo beat (nothing is heard). On your desktop it follows whatever your PC plays, never the microphone, and it never flashes." />
+                                <TextBlock Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap"
+                                           Text="The preview plays a built-in demo beat (nothing is heard). It never flashes." />
                             </StackPanel>
 
-                            <TextBlock Text="Cursor" Style="{StaticResource Caption}" Margin="0,8,0,4" />
-                            <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.Interactivities}"
-                                     SelectedItem="{Binding SelectedInteractivity}" AutomationProperties.Name="Cursor" />
-                            <TextBlock Text="Palette" Style="{StaticResource Caption}" Margin="0,10,0,4" />
-                            <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.Palettes}"
-                                     SelectedItem="{Binding SelectedPalette}" AutomationProperties.Name="Palette">
-                                <ListBox.ItemContainerStyle>
-                                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource ChipItemStyle}">
-                                        <Setter Property="Margin" Value="0,0,0,6" />
-                                    </Style>
-                                </ListBox.ItemContainerStyle>
-                            </ListBox>
-                            <TextBlock Text="Motion" Style="{StaticResource Caption}" Margin="0,4,0,4" />
-                            <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.Speeds}"
-                                     SelectedItem="{Binding SelectedSpeed}" AutomationProperties.Name="Motion" />
-
-                            <TextBlock Text="Made by" Style="{StaticResource Caption}" Margin="0,12,0,4" />
-                            <ComboBox ItemsSource="{Binding Authors}" SelectedItem="{Binding SelectedAuthor}" DisplayMemberPath="Label"
-                                      AutomationProperties.Name="Made by" />
-                            <TextBlock Margin="0,6,0,0" Text="{Binding SelectedAuthor.Description}" Style="{StaticResource Caption}" />
+                            <!-- Options, folded away: sensible defaults apply -->
+                            <ui:CardExpander Margin="0,12,0,0" IsExpanded="{Binding ShowOptions}" Icon="{ui:SymbolIcon Options24}" ContentPadding="12,8,12,12">
+                                <ui:CardExpander.Header>
+                                    <StackPanel>
+                                        <TextBlock Text="Options" FontWeight="SemiBold" />
+                                        <TextBlock Style="{StaticResource Caption}">
+                                            <Run Text="{Binding SelectedInteractivity.Label, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding SelectedPalette.Label, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding SelectedSpeed.Label, Mode=OneWay}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </ui:CardExpander.Header>
+                                <StackPanel>
+                                    <TextBlock Text="Cursor" Style="{StaticResource Caption}" Margin="0,0,0,4" />
+                                    <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.Interactivities}"
+                                             SelectedItem="{Binding SelectedInteractivity}" AutomationProperties.Name="Cursor" />
+                                    <TextBlock Text="Palette" Style="{StaticResource Caption}" Margin="0,10,0,4" />
+                                    <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.Palettes}"
+                                             SelectedItem="{Binding SelectedPalette}" AutomationProperties.Name="Palette">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource ChipItemStyle}">
+                                                <Setter Property="Margin" Value="0,0,0,6" />
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                    </ListBox>
+                                    <TextBlock Text="Motion" Style="{StaticResource Caption}" Margin="0,4,0,4" />
+                                    <ListBox Style="{StaticResource ChipRow}" ItemsSource="{x:Static vm:StudioViewModel.Speeds}"
+                                             SelectedItem="{Binding SelectedSpeed}" AutomationProperties.Name="Motion" />
+                                    <TextBlock Text="Written by" Style="{StaticResource Caption}" Margin="0,12,0,4" />
+                                    <ComboBox ItemsSource="{Binding Authors}" SelectedItem="{Binding SelectedAuthor}" DisplayMemberPath="Label"
+                                              AutomationProperties.Name="Written by" />
+                                    <TextBlock Margin="0,6,0,0" Text="{Binding SelectedAuthor.Description}" Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </ui:CardExpander>
 
                             <Border Margin="0,10,0,0" Padding="12,8" CornerRadius="6" Background="{DynamicResource CardBackgroundFillColorSecondaryBrush}"
                                     Visibility="{Binding NeedsSetup, Converter={StaticResource BoolToVisibility}}">
@@ -164,13 +393,15 @@
                             </Border>
 
                             <!-- Create (API authors) -->
-                            <StackPanel Orientation="Horizontal" Margin="0,14,0,0"
-                                        Visibility="{Binding IsPaste, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
-                                <ui:Button Appearance="Primary" Content="Create" Icon="{ui:SymbolIcon Sparkle24}" Padding="18,8"
-                                           Command="{Binding CreateCommand}" />
-                                <ui:Button Content="Surprise me" Margin="8,0,0,0" Icon="{ui:SymbolIcon Lightbulb24}" Command="{Binding SurpriseMeCommand}" />
-                                <ui:Button Content="Stop" Margin="8,0,0,0" Command="{Binding CancelCommand}"
-                                           Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                            <StackPanel Visibility="{Binding IsPaste, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
+                                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                                    <ui:Button Appearance="Primary" Content="Create" Icon="{ui:SymbolIcon Sparkle24}" Padding="18,8"
+                                               Command="{Binding CreateCommand}" />
+                                    <ui:Button Content="Surprise me" Margin="8,0,0,0" Icon="{ui:SymbolIcon Lightbulb24}" Command="{Binding SurpriseMeCommand}" />
+                                    <ui:Button Content="Stop" Margin="8,0,0,0" Command="{Binding CancelCommand}"
+                                               Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding AuthorLine}" Style="{StaticResource Caption}" Margin="0,6,0,0" />
                             </StackPanel>
 
                             <!-- Any AI chat: copy the prompt, paste the answer -->
@@ -203,8 +434,8 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Refine -->
-                    <Border Style="{StaticResource CardBorder}" Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
+                    <!-- Refine (AI results only) -->
+                    <Border Style="{StaticResource CardBorder}" Visibility="{Binding CanRefineResult, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
                             <TextBlock Text="Refine" FontWeight="SemiBold" />
                             <TextBlock Text="Change what's showing, e.g. slower, more purple, fewer particles." Style="{StaticResource Caption}" Margin="0,2,0,8" />
@@ -242,57 +473,10 @@
                     <!-- History -->
                     <StackPanel Visibility="{Binding HasHistory, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Text="Your creations" Style="{StaticResource SectionHeader}" Margin="0,4,0,8" />
-                        <ItemsControl ItemsSource="{Binding History}" Focusable="False">
+                        <ItemsControl ItemsSource="{Binding History}" ItemTemplate="{StaticResource HistoryTile}" Focusable="False">
                             <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type vm:StudioHistoryItem}">
-                                    <Button Margin="0,0,8,8" Padding="0" Width="108" Height="61" ToolTip="{Binding Tooltip}" Cursor="Hand"
-                                            AutomationProperties.Name="{Binding Entry.Title}"
-                                            Command="{Binding DataContext.OpenHistoryCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border CornerRadius="6" ClipToBounds="True" BorderThickness="1" x:Name="Frame"
-                                                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                                                        Background="{DynamicResource CardBackgroundFillColorSecondaryBrush}">
-                                                    <Grid>
-                                                        <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" />
-                                                        <TextBlock Text="{Binding Entry.Title}" FontSize="10" Margin="5,0,5,3" VerticalAlignment="Bottom"
-                                                                   Foreground="White" TextTrimming="CharacterEllipsis">
-                                                            <TextBlock.Effect>
-                                                                <DropShadowEffect BlurRadius="4" ShadowDepth="0" Opacity="0.9" />
-                                                            </TextBlock.Effect>
-                                                        </TextBlock>
-                                                    </Grid>
-                                                </Border>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}" />
-                                                    </Trigger>
-                                                    <Trigger Property="IsKeyboardFocused" Value="True">
-                                                        <Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource FocusStrokeColorOuterBrush}" />
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                        <Button.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="Remix (load its idea and options)"
-                                                          Command="{Binding PlacementTarget.Tag.RemixCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding}" />
-                                                <MenuItem Header="Remove from history"
-                                                          Command="{Binding PlacementTarget.Tag.RemoveHistoryCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                                                          CommandParameter="{Binding}" />
-                                            </ContextMenu>
-                                        </Button.ContextMenu>
-                                        <Button.Tag>
-                                            <Binding Path="DataContext" RelativeSource="{RelativeSource AncestorType=UserControl}" />
-                                        </Button.Tag>
-                                    </Button>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </StackPanel>
                 </StackPanel>
@@ -328,6 +512,15 @@
                     </Grid>
                 </Border>
 
+                <!-- While designing: what the preview is showing -->
+                <DockPanel Grid.Row="1" Margin="0,12,0,0" Visibility="{Binding IsDesignLive, Converter={StaticResource BoolToVisibility}}">
+                    <CheckBox DockPanel.Dock="Right" Content="Both screens" IsChecked="{Binding BothScreens}" Margin="12,0,0,0"
+                              Visibility="{Binding HasSeveralScreens, Converter={StaticResource BoolToVisibility}}"
+                              ToolTip="Preview it across your real monitor layout" />
+                    <TextBlock Style="{StaticResource Caption}" VerticalAlignment="Center" TextWrapping="Wrap"
+                               Text="Live preview over a sample wallpaper. Move the mouse over it to try the cursor. “Keep this overlay” checks it and turns it on." />
+                </DockPanel>
+
                 <!-- Result bar: title and speed, then options on the left and actions on the right (wrapping) -->
                 <StackPanel Grid.Row="1" Margin="0,12,0,0" Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
                     <DockPanel>
@@ -341,7 +534,7 @@
                     </DockPanel>
                     <TextBlock Text="{Binding Current.Description}" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis"
                                Visibility="{Binding Current.Description, Converter={StaticResource NotEmptyToVisibility}}" />
-                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding IsAiResult, Converter={StaticResource BoolToVisibility}}">
                         <Border Padding="8,2" CornerRadius="10" VerticalAlignment="Center" Background="{DynamicResource CardBackgroundFillColorSecondaryBrush}"
                                 ToolTip="{Binding Current.Model, StringFormat=Written by {0}. The prompt and model are kept with it.}">
                             <StackPanel Orientation="Horizontal">
@@ -374,7 +567,7 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Sliders the AI offered (tweak without asking again) -->
+                    <!-- Sliders the shader offers (tweak without asking again) -->
                     <ItemsControl Margin="0,8,0,0" ItemsSource="{Binding Sliders}" Visibility="{Binding HasSliders, Converter={StaticResource BoolToVisibility}}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>

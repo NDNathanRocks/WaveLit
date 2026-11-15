@@ -9,7 +9,15 @@
 // the wallpaper is frozen (paused), stops with the page when it's suspended, and catches up on resume.
 //
 // Also used by the Desktop editor (desk.js): render(list, container, k, opts) with opts.editing adds data-ids.
+//
+// Motion (optional, opts.motion = { follow, pulse } with opts.getView): widgets lean a little towards the cursor
+// (reading the spring-smoothed WavelitPointer, so it glides) and swell softly on the beat (WavelitAudio). Both act
+// through one transform on each element and stay small: at most about 1% of the monitor's short side, and a 3%
+// swell, so nothing ever reads as jumping. The loop runs only while the cursor or music is active.
 (function () {
+  const LEAN = 0.012;          // of the short side, at full presence and a cursor on the far edge
+  const PULSE = 0.03;          // scale swell on a full beat
+  const IDLE_CHECK_MS = 250;
   // Must match WidgetFonts.All in Wavelit.Core (a test checks the ids).
   const FONTS = {
     segoe: "'Segoe UI Variable Display', 'Segoe UI Variable', 'Segoe UI', sans-serif",
@@ -75,7 +83,10 @@
     el.style.left = ((a.x + clamp(w.x, 0, 1, 0.5) * a.width) / k) + 'px';
     el.style.top = ((a.y + clamp(w.y, 0, 1, 0.4) * a.height) / k) + 'px';
     const align = w.align === 'left' || w.align === 'right' ? w.align : 'center';
-    el.style.transform = `translate(${align === 'left' ? '0' : align === 'right' ? '-100%' : '-50%'}, -50%)`;
+    // The alignment shift is the base transform; motion (lean, pulse) appends to it each frame.
+    el.dataset.base = `translate(${align === 'left' ? '0' : align === 'right' ? '-100%' : '-50%'}, -50%)`;
+    el.style.transform = el.dataset.base;
+    el.style.transformOrigin = align === 'left' ? 'left center' : align === 'right' ? 'right center' : 'center center';
     el.style.textAlign = align;
     el.style.opacity = String(clamp(w.opacity, 0.1, 1, 0.92));
     if (w.kind === 'divider') {
@@ -139,12 +150,61 @@
     // A suspended page skips timers; catch up the moment it's visible again.
     const onVisible = () => { if (document.visibilityState === 'visible') update(); };
     document.addEventListener('visibilitychange', onVisible);
+
+    // ---- motion: lean towards the cursor, pulse with the music
+    const motion = opts && opts.motion && (opts.motion.follow || opts.motion.pulse) && typeof opts.getView === 'function' ? opts.motion : null;
+    let raf = 0, idle = 0, paused = false, lastPulse = 0;
+    const centre = (w) => ({ x: (w.area.x + clamp(w.x, 0, 1, 0.5) * w.area.width) / k, y: (w.area.y + clamp(w.y, 0, 1, 0.4) * w.area.height) / k });
+    const rest = () => { for (const { el } of items) if (el.style.transform !== el.dataset.base) el.style.transform = el.dataset.base; };
+    const active = () => (motion.follow && window.WavelitPointer && window.WavelitPointer.isActive())
+      || (motion.pulse && window.WavelitAudio && window.WavelitAudio.isActive());
+    function frame() {
+      raf = 0;
+      if (paused || !motion) return;
+      if (!active()) { rest(); idle = setTimeout(() => { idle = 0; if (!paused) frame(); }, IDLE_CHECK_MS); return; }
+      const v = opts.getView();
+      let cursor = null;
+      if (motion.follow && window.WavelitPointer) {
+        // The pointer comes in canvas units (k px per unit, y flipped by sample); map it into this window's CSS px.
+        const s = window.WavelitPointer.sample(1, v.canvas.height);
+        if (s.pointer[2] > 0.001) cursor = { x: (s.pointer[0] - v.viewport.x) / k, y: (v.canvas.height - s.pointer[1] - v.viewport.y) / k, p: s.pointer[2] };
+      }
+      let pulse = 0;
+      if (motion.pulse && window.WavelitAudio) {
+        pulse = window.WavelitAudio.sample().beat[0];   // already eased by presence (audio.js)
+      }
+      lastPulse = pulse;
+      for (const { w, el } of items) {
+        const short = Math.min(w.area.width, w.area.height) / k;
+        let dx = 0, dy = 0;
+        if (cursor) {
+          const c = centre(w);
+          // Lean a fraction of the way towards the cursor, with a soft falloff so far-off cursors barely count.
+          const rx = (cursor.x - c.x) / short, ry = (cursor.y - c.y) / short;
+          const dist = Math.hypot(rx, ry);
+          const fall = Math.exp(-dist * dist * 0.8);
+          dx = Math.max(-1, Math.min(1, rx)) * LEAN * short * cursor.p * (0.35 + 0.65 * fall);
+          dy = Math.max(-1, Math.min(1, ry)) * LEAN * short * cursor.p * (0.35 + 0.65 * fall);
+        }
+        const scale = 1 + PULSE * pulse;
+        el.style.transform = `${el.dataset.base} translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px) scale(${scale.toFixed(4)})`;
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    const start = () => { if (motion && !raf && !idle && !paused) raf = requestAnimationFrame(frame); };
+    const stop = () => { if (raf) cancelAnimationFrame(raf); raf = 0; clearTimeout(idle); idle = 0; };
+    start();
+
     return {
       layer,
       elements: new Map(items.map(i => [i.w.id, i.el])),
       update,
+      /** Freezes motion (the wallpaper is paused); the clock keeps ticking. */
+      pause() { paused = true; stop(); rest(); },
+      resume() { paused = false; start(); },
       dispose() {
         clearTimeout(timer);
+        stop();
         document.removeEventListener('visibilitychange', onVisible);
         layer.remove();
       },

@@ -360,6 +360,8 @@
                     <StackPanel>
                         <TextBlock Text="Start with Windows" FontWeight="SemiBold" />
                         <TextBlock Text="Starts quietly in the tray and restores your wallpapers." Style="{StaticResource Caption}" />
+                        <TextBlock Text="Windows also lists it under Settings → Apps → Startup, where it can be turned off." Style="{StaticResource Caption}"
+                                   Visibility="{Binding IsPackaged, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
                 </ui:CardControl.Header>
                 <ui:ToggleSwitch IsChecked="{Binding StartWithWindows}" AutomationProperties.Name="Start with Windows" />

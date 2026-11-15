@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
@@ -37,12 +38,13 @@ public sealed partial class ParamSlider(ShaderParam param, double value, Action 
     partial void OnValueChanged(double value) => changed();
 }
 
-public enum StudioTab { Picture, Wallpaper, Overlay, Audio }
+/// <summary>What the user is making. The Studio opens on the choice; each path shows only what it needs.</summary>
+public enum StudioMode { Choose, Wallpaper, Overlay, Picture }
 
-public sealed record StudioTabOption(StudioTab Tab, string Label, Wpf.Ui.Controls.SymbolRegular Icon, bool IsEnabled = true)
-{
-    public override string ToString() => Label;
-}
+/// <summary>Two ways to an overlay: build one from choices (no key needed), or describe it to an AI.</summary>
+public enum OverlayWay { Design, Describe }
+
+public sealed record StudioModeCard(StudioMode Mode, string Title, string Blurb, string Footnote, Wpf.Ui.Controls.SymbolRegular Icon);
 
 public sealed record StudioAuthorOption(string Id, string Label, string Description)
 {
@@ -54,7 +56,8 @@ public sealed class StudioHistoryItem(StudioEntry entry)
 {
     public StudioEntry Entry { get; } = entry;
     public ImageSource? Thumbnail { get; } = Load(entry.ThumbnailPath);
-    public string Tooltip => $"{Entry.Title}: {Entry.Prompt}";
+    public string Tooltip => $"{Entry.Title}: {(Entry.IsDesigned ? Entry.Design?.Describe() ?? "Overlay Designer" : Entry.Prompt)}";
+    public string KindLabel => Entry.Kind == ShaderKind.Overlay ? "Overlay" : "Wallpaper";
     public override string ToString() => Entry.Title;
 
     internal static ImageSource? Load(string? path)
@@ -79,8 +82,9 @@ public sealed class StudioHistoryItem(StudioEntry entry)
 }
 
 /// <summary>
-/// Studio (plan §19): Picture (the image generators) · Live wallpaper · Overlay · Audio (later).
-/// Describe it, an AI writes the shader, Wavelit checks and previews it, and nothing is applied until the user says so.
+/// Studio (plan §19, reshaped in round 9): choose what to make (a live wallpaper, an overlay or a picture), then
+/// one focused path. Overlays can be built in the Designer from choices alone (no key), or described to an AI.
+/// Music is an option on either shader path, not a separate place. Nothing is applied until the user says so.
 /// </summary>
 public sealed partial class StudioViewModel : ObservableObject, IDisposable
 {
@@ -88,11 +92,16 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
 
     private readonly ShaderStudioServices _services;
     private readonly Random _random = new();
+    private readonly DispatcherTimer _designTimer;
     private IStudioSurface? _surface;
     private CancellationTokenSource? _cts;
+    private string? _keptDesignOverlayId;   // the overlay the last "Keep" created, replaced by the next Keep
+    private bool _loadingEntry;
     private bool _disposed;
 
-    [ObservableProperty] private StudioTabOption _selectedTab;
+    [ObservableProperty] private StudioMode _mode = StudioMode.Choose;
+    [ObservableProperty] private OverlayWay _overlayWay = OverlayWay.Design;
+    [ObservableProperty] private bool _musicOn;
     [ObservableProperty] private string _prompt = "";
     [ObservableProperty] private Choice<Interactivity> _selectedInteractivity;
     [ObservableProperty] private Choice<string> _selectedPalette;
@@ -107,17 +116,29 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _showCode;
     [ObservableProperty] private bool _bothScreens;
     [ObservableProperty] private string _pastedReply = "";
-    // Recipe (plan §21.4): a fill-in sentence; free writing is one click away.
-    [ObservableProperty] private bool _useRecipe = true;
+    [ObservableProperty] private bool _showOptions;
+    // Recipe (plan §21.4): a fill-in sentence; free writing is the default.
+    [ObservableProperty] private bool _useRecipe;
     [ObservableProperty] private string _recipeSubject = "";
     [ObservableProperty] private string _recipeMotion = "drifts";
     [ObservableProperty] private string _recipeMood = "calm";
     [ObservableProperty] private string _recipeLight = "";
     [ObservableProperty] private string _recipeDetail = "balanced";
     [ObservableProperty] private string _recipeAvoid = "";
-    // Music tab (plan §20.4).
+    // Music (plan §20.4).
     [ObservableProperty] private Choice<string> _selectedReactsTo;
     [ObservableProperty] private Choice<string> _selectedReactsBy;
+    // Overlay Designer.
+    [ObservableProperty] private Choice<string> _designShape;
+    [ObservableProperty] private Choice<string> _designMotion;
+    [ObservableProperty] private Choice<string> _designCursor;
+    [ObservableProperty] private double _designDensity = 50;
+    [ObservableProperty] private double _designSize = 50;
+    [ObservableProperty] private double _designSpeed = 50;
+    [ObservableProperty] private double _designTwinkle = 30;
+    [ObservableProperty] private double _designWind = 50;
+    [ObservableProperty] private double _designGlow = 30;
+    [ObservableProperty] private bool _isDesignLive;
     // Report (plan §21.6).
     [ObservableProperty] private bool _isReporting;
     [ObservableProperty] private Choice<string> _reportReason;
@@ -130,31 +151,34 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         Context = context;
         Picture = picture;
         _services = services;
-        Tabs =
-        [
-            new(StudioTab.Picture, "Picture", Wpf.Ui.Controls.SymbolRegular.Image24),
-            new(StudioTab.Wallpaper, "Live wallpaper", Wpf.Ui.Controls.SymbolRegular.Sparkle24),
-            new(StudioTab.Overlay, "Overlay", Wpf.Ui.Controls.SymbolRegular.Layer24),
-            new(StudioTab.Audio, "Music", Wpf.Ui.Controls.SymbolRegular.MusicNote224),
-        ];
         _selectedReactsTo = ReactsToChoices[3];
         _selectedReactsBy = ReactsByChoices[0];
         _reportReason = ReportReasons[0];
-        _selectedTab = Tabs[1];
         _selectedInteractivity = Interactivities[1];
         _selectedPalette = Palettes[0];
         _selectedSpeed = Speeds[1];
+        _designShape = DesignShapes[0];
+        _designMotion = DesignMotions[0];
+        _designCursor = DesignCursors[0];
         // Best available by default: Claude with a key, then Cloudflare, then any chat AI.
         _selectedAuthor = services.Claude.IsConfigured ? Authors[0] : services.Cloudflare.IsConfigured ? Authors[1] : Authors[2];
         foreach (var e in services.History.All) History.Add(new StudioHistoryItem(e));
+        _designTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(180), DispatcherPriority.Background, (sender, args) => { ((DispatcherTimer)sender!).Stop(); _ = ShowDesignAsync(); }, Dispatcher.CurrentDispatcher);
+        _designTimer.Stop();
     }
 
     public DashboardContext Context { get; }
     public CreateViewModel Picture { get; }
-    public IReadOnlyList<StudioTabOption> Tabs { get; }
     public ObservableCollection<StudioHistoryItem> History { get; } = [];
     /// <summary>The current result's sliders (empty when it declares none).</summary>
     public ObservableCollection<ParamSlider> Sliders { get; } = [];
+
+    public IReadOnlyList<StudioModeCard> ModeCards { get; } =
+    [
+        new(StudioMode.Wallpaper, "Live wallpaper", "An animated scene written as a shader, for every monitor at once.", "Describe it, or let the AI surprise you.", Wpf.Ui.Controls.SymbolRegular.Sparkle24),
+        new(StudioMode.Overlay, "Overlay", "Petals, snow, embers or anything else drifting over the wallpaper you already have.", "Build it from choices, no key needed, or describe it.", Wpf.Ui.Controls.SymbolRegular.Layer24),
+        new(StudioMode.Picture, "Picture", "A still image shaped exactly like your screens, made on this PC or in the cloud.", "Then bring it to life with a motion effect.", Wpf.Ui.Controls.SymbolRegular.Image24),
+    ];
 
     public static IReadOnlyList<string> RecipeSubjects => ShaderRecipe.Subjects;
     public static IReadOnlyList<string> RecipeMotions => ShaderRecipe.Motions;
@@ -166,6 +190,10 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     public static IReadOnlyList<Choice<string>> ReactsByChoices { get; } =
         [new("pulsing", "pulsing"), new("shaking", "shaking"), new("glowing", "glowing"), new("gathering into patterns", "gathering into patterns")];
     public static IReadOnlyList<Choice<string>> ReportReasons { get; } = ContentReport.Reasons.Select(r => new Choice<string>(r.Label, r.Id)).ToList();
+
+    public static IReadOnlyList<Choice<string>> DesignShapes { get; } = OverlayDesign.Shapes.Select(s => new Choice<string>(s.Label, s.Id)).ToList();
+    public static IReadOnlyList<Choice<string>> DesignMotions { get; } = OverlayDesign.Motions.Select(m => new Choice<string>(m.Label, m.Id)).ToList();
+    public static IReadOnlyList<Choice<string>> DesignCursors { get; } = OverlayDesign.Cursors.Select(c => new Choice<string>(c.Label, c.Id)).ToList();
 
     public static IReadOnlyList<Choice<Interactivity>> Interactivities { get; } =
     [
@@ -220,21 +248,43 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         "slow light rays sweeping across the screen",
         "bubbles that wobble up and pop near the cursor",
     ];
+    private static readonly IReadOnlyList<string> OverlayAudioIdeas =
+    [
+        "sparks that burst upward on every kick",
+        "petals that fall faster with the beat",
+        "soft bokeh that breathes with the volume",
+        "stardust that buzzes with the treble",
+    ];
 
-    public bool IsPicture => SelectedTab.Tab == StudioTab.Picture;
-    public bool IsShaderTab => SelectedTab.Tab is StudioTab.Wallpaper or StudioTab.Overlay or StudioTab.Audio;
-    public bool IsAudioTab => SelectedTab.Tab == StudioTab.Audio;
-    public ShaderKind Kind => SelectedTab.Tab == StudioTab.Overlay ? ShaderKind.Overlay : ShaderKind.Wallpaper;
-    public IReadOnlyList<string> Ideas => IsAudioTab ? AudioIdeas : Kind == ShaderKind.Overlay ? OverlayIdeas : WallpaperIdeas;
-    public string Placeholder => IsAudioTab
-        ? "Describe a music visualizer, e.g. stardust that buzzes with the treble and ripples on every kick"
-        : Kind == ShaderKind.Overlay
-        ? "Describe a layer for over any wallpaper, e.g. warm embers drifting up, scattering from the cursor"
-        : "Describe a live wallpaper, e.g. a slow lava lamp in sunset colours that follows the cursor";
+    // ---------------------------------------------------------------- mode
+
+    public bool IsChoosing => Mode == StudioMode.Choose;
+    public bool IsPicture => Mode == StudioMode.Picture;
+    public bool IsShaderTab => Mode is StudioMode.Wallpaper or StudioMode.Overlay;
+    public bool IsWallpaperMode => Mode == StudioMode.Wallpaper;
+    public bool IsOverlayMode => Mode == StudioMode.Overlay;
+    public bool IsDesigning => IsOverlayMode && OverlayWay == OverlayWay.Design;
+    public bool IsDescribing => IsShaderTab && !IsDesigning;
+    /// <summary>The shader reacts to music (an option on both shader paths; the old "Music" tab).</summary>
+    public bool IsAudioTab => IsShaderTab && MusicOn;
+    public ShaderKind Kind => Mode == StudioMode.Overlay ? ShaderKind.Overlay : ShaderKind.Wallpaper;
+    public string ModeTitle => Mode switch
+    {
+        StudioMode.Wallpaper => "Live wallpaper",
+        StudioMode.Overlay => "Overlay",
+        StudioMode.Picture => "Picture",
+        _ => "Studio",
+    };
+    public IReadOnlyList<string> Ideas => Kind == ShaderKind.Overlay ? MusicOn ? OverlayAudioIdeas : OverlayIdeas : MusicOn ? AudioIdeas : WallpaperIdeas;
+    public string Placeholder => Kind == ShaderKind.Overlay
+        ? MusicOn ? "Describe a layer that moves to the music, e.g. sparks that burst upward on every kick"
+                  : "Describe a layer for over any wallpaper, e.g. warm embers drifting up, scattering from the cursor"
+        : MusicOn ? "Describe a music visualizer, e.g. stardust that buzzes with the treble and ripples on every kick"
+                  : "Describe a live wallpaper, e.g. a slow lava lamp in sunset colours that follows the cursor";
 
     /// <summary>The recipe as plain English (what the AI is asked for).</summary>
     public string RecipeSentence => Recipe.Sentence(SelectedPalette.Label, SelectedInteractivity.Value)
-        + (IsAudioTab ? $" It reacts to {SelectedReactsTo.Label} by {SelectedReactsBy.Label}." : "");
+        + (MusicOn ? $" It reacts to {SelectedReactsTo.Label} by {SelectedReactsBy.Label}." : "");
 
     private ShaderRecipe Recipe => new(RecipeSubject, RecipeMotion, RecipeMood, RecipeLight, RecipeDetail, RecipeAvoid);
 
@@ -245,8 +295,8 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         {
             if (UseRecipe || Prompt.Trim().Length < 3) return null;
             string p = " " + Prompt.ToLowerInvariant() + " ";
-            bool moves = ShaderRecipe.Motions.Concat(["drift", "swirl", "flow", "pulse", "fall", "bloom", "move", "sway", "wave", "rise", "spin", "float", "ripple", "breath"]).Any(w => p.Contains(w));
-            bool mood = ShaderRecipe.Moods.Concat(["soft", "warm", "cold", "dark", "bright", "gentle", "slow", "neon", "dreamy", "cozy", "eerie", "serene"]).Any(w => p.Contains(w));
+            bool moves = ShaderRecipe.Motions.Concat(["drift", "swirl", "flow", "pulse", "fall", "bloom", "move", "sway", "wave", "rise", "spin", "float", "ripple", "breath", "burst", "scatter"]).Any(w => p.Contains(w));
+            bool mood = ShaderRecipe.Moods.Concat(["soft", "warm", "cold", "dark", "bright", "gentle", "slow", "neon", "dreamy", "cozy", "eerie", "serene", "golden", "glowing"]).Any(w => p.Contains(w));
             var missing = new List<string>();
             if (Prompt.Trim().Split(' ').Length < 3) missing.Add("what it is");
             if (!moves) missing.Add("how it moves");
@@ -256,7 +306,9 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     }
 
     public bool HasSliders => Sliders.Count > 0;
-    public bool IsAiResult => Current is not null;
+    /// <summary>An AI result: labelled "Made with AI" and reportable. Designer results are the user's own work.</summary>
+    public bool IsAiResult => Current is { IsDesigned: false };
+    public bool CanRefineResult => HasResult && Current is { IsDesigned: false };
 
     public bool IsPaste => SelectedAuthor.Id == PasteAuthorId;
     public bool NeedsSetup => SelectedAuthor.Id switch
@@ -268,6 +320,8 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     public string SetupText => SelectedAuthor.Id == ClaudeShaderAuthor.AuthorId
         ? "Add your Anthropic API key in Settings → Studio to use Claude."
         : "Add your free Cloudflare account ID and API token in Settings → Studio.";
+    /// <summary>One line under the Create button: who writes it, so the choice is visible without opening Options.</summary>
+    public string AuthorLine => IsPaste ? "Written by any AI chat (copy and paste, free)" : $"Written by {SelectedAuthor.Label}";
 
     public bool HasResult => Current is not null;
     public bool IsOverlayResult => Current?.Kind == ShaderKind.Overlay;
@@ -283,21 +337,44 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     };
 
     /// <summary>The paste-ready prompt for any chat AI (with the current result when refining).</summary>
-    public string ChatPrompt => ShaderPrompt.ChatPrompt(BuildRequest(refine: Current is not null && RefineNote.Trim().Length > 0));
+    public string ChatPrompt => ShaderPrompt.ChatPrompt(BuildRequest(refine: Current is { IsDesigned: false } && RefineNote.Trim().Length > 0));
 
-    partial void OnSelectedTabChanged(StudioTabOption value)
+    private static readonly string[] ModeProperties =
+    [
+        nameof(IsChoosing), nameof(IsPicture), nameof(IsShaderTab), nameof(IsWallpaperMode), nameof(IsOverlayMode), nameof(IsDesigning),
+        nameof(IsDescribing), nameof(IsAudioTab), nameof(Kind), nameof(ModeTitle), nameof(Ideas), nameof(Placeholder), nameof(ChatPrompt), nameof(RecipeSentence),
+    ];
+
+    partial void OnModeChanged(StudioMode value)
     {
-        foreach (var name in new[] { nameof(IsPicture), nameof(IsShaderTab), nameof(IsAudioTab), nameof(Kind), nameof(Ideas), nameof(Placeholder), nameof(ChatPrompt), nameof(RecipeSentence) })
-            OnPropertyChanged(name);
+        foreach (var name in ModeProperties) OnPropertyChanged(name);
         SyncRecipePrompt();
-        if (value.Tab == StudioTab.Picture) Picture.Activate();
+        Message = null;
+        if (value == StudioMode.Picture) Picture.Activate();
+        if (IsDesigning) RequestDesign();
+        else if (!_loadingEntry && IsShaderTab && Current is { } c && c.Kind != Kind) Current = null;   // a wallpaper result doesn't belong on the overlay path
+        else _ = ShowCurrentAsync();
+    }
+
+    partial void OnOverlayWayChanged(OverlayWay value)
+    {
+        OnPropertyChanged(nameof(IsDesigning));
+        OnPropertyChanged(nameof(IsDescribing));
+        Message = null;
+        if (IsDesigning) RequestDesign();
+        else { IsDesignLive = false; _ = ShowCurrentAsync(); }
+    }
+
+    partial void OnMusicOnChanged(bool value)
+    {
+        foreach (var name in new[] { nameof(IsAudioTab), nameof(Ideas), nameof(Placeholder), nameof(ChatPrompt), nameof(RecipeSentence) }) OnPropertyChanged(name);
+        SyncRecipePrompt();
+        if (IsDesigning) RequestDesign();
     }
 
     partial void OnSelectedAuthorChanged(StudioAuthorOption value)
     {
-        OnPropertyChanged(nameof(IsPaste));
-        OnPropertyChanged(nameof(NeedsSetup));
-        OnPropertyChanged(nameof(SetupText));
+        foreach (var name in new[] { nameof(IsPaste), nameof(NeedsSetup), nameof(SetupText), nameof(AuthorLine) }) OnPropertyChanged(name);
         Message = null;
         SendBackText = null;
     }
@@ -323,8 +400,14 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     }
     partial void OnSelectedSpeedChanged(Choice<MotionSpeed> value) => OnPropertyChanged(nameof(ChatPrompt));
     partial void OnRefineNoteChanged(string value) { RefineCommand.NotifyCanExecuteChanged(); OnPropertyChanged(nameof(ChatPrompt)); }
-    partial void OnIsBusyChanged(bool value) { CreateCommand.NotifyCanExecuteChanged(); RefineCommand.NotifyCanExecuteChanged(); CheckPastedCommand.NotifyCanExecuteChanged(); }
-    partial void OnBothScreensChanged(bool value) => _ = ShowCurrentAsync();
+    partial void OnIsBusyChanged(bool value)
+    {
+        CreateCommand.NotifyCanExecuteChanged();
+        RefineCommand.NotifyCanExecuteChanged();
+        CheckPastedCommand.NotifyCanExecuteChanged();
+        KeepDesignCommand.NotifyCanExecuteChanged();
+    }
+    partial void OnBothScreensChanged(bool value) { if (IsDesignLive) RequestDesign(); else _ = ShowCurrentAsync(); }
 
     partial void OnCurrentChanged(StudioEntry? value)
     {
@@ -336,9 +419,10 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
             for (int i = 0; i < declared.Count; i++) Sliders.Add(new ParamSlider(declared[i], values[i], OnSliderChanged));
         }
         IsReporting = false;
-        foreach (var name in new[] { nameof(HasResult), nameof(IsOverlayResult), nameof(IsWallpaperResult), nameof(SpeedBadge), nameof(ChatPrompt), nameof(HasSliders), nameof(IsAiResult) })
+        foreach (var name in new[] { nameof(HasResult), nameof(IsOverlayResult), nameof(IsWallpaperResult), nameof(SpeedBadge), nameof(ChatPrompt), nameof(HasSliders), nameof(IsAiResult), nameof(CanRefineResult) })
             OnPropertyChanged(name);
         RefineCommand.NotifyCanExecuteChanged();
+        if (value is not null) IsDesignLive = false;
         _ = ShowCurrentAsync();
     }
 
@@ -361,12 +445,13 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _surface = surface;
         if (surface is null) _cts?.Cancel();   // the lab is gone; nothing can be checked
+        else if (IsDesigning && Current is null) RequestDesign();
         else _ = ShowCurrentAsync();
     }
 
     private async Task ShowCurrentAsync()
     {
-        if (_surface is not { } surface) return;
+        if (_surface is not { } surface || IsDesignLive) return;
         try
         {
             if (Current is not { } c)
@@ -378,8 +463,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
             await surface.ShowAsync(c.Kind, c.Code, c.UsesPointer, BothScreens && HasSeveralScreens ? ExtendLayout() : null,
                 c.Kind == ShaderKind.Overlay ? Controls.StudioPreview.OverlayBackground : null, SliderValues());
         }
-        catch (Exception ex) when (ex is TimeoutException or InvalidOperationException or OperationCanceledException
-                                       or System.Runtime.InteropServices.COMException or Microsoft.Web.WebView2.Core.WebView2RuntimeNotFoundException)
+        catch (Exception ex) when (IsPreviewFailure(ex) || ex is OperationCanceledException)
         {
             Log.Warning(ex, "Studio preview failed to start");
             Message = "The preview couldn't start. Set it as your wallpaper to see it, or restart Wavelit.";
@@ -401,11 +485,150 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         };
     }
 
+    // ---------------------------------------------------------------- Overlay Designer
+
+    /// <summary>The design as chosen right now.</summary>
+    public OverlayDesign Design => new(DesignShape.Value, DesignMotion.Value, DesignCursor.Value,
+        DesignDensity / 100, DesignSize / 100, DesignSpeed / 100, DesignTwinkle / 100, DesignWind / 100, DesignGlow / 100, MusicOn);
+
+    public string DesignTitle => Design.Title;
+    public string DesignDescription => Design.Describe();
+
+    partial void OnDesignShapeChanged(Choice<string> value) => RequestDesign();
+    partial void OnDesignMotionChanged(Choice<string> value) => RequestDesign();
+    partial void OnDesignCursorChanged(Choice<string> value) => RequestDesign();
+    partial void OnDesignDensityChanged(double value) => RequestDesign();
+    partial void OnDesignSizeChanged(double value) => RequestDesign();
+    partial void OnDesignSpeedChanged(double value) => RequestDesign();
+    partial void OnDesignTwinkleChanged(double value) => RequestDesign();
+    partial void OnDesignWindChanged(double value) => RequestDesign();
+    partial void OnDesignGlowChanged(double value) => RequestDesign();
+
+    // Slider drags arrive many times a second; the preview is rebuilt once they settle.
+    private void RequestDesign()
+    {
+        if (!IsDesigning || _disposed || _loadingEntry) return;
+        OnPropertyChanged(nameof(DesignTitle));
+        OnPropertyChanged(nameof(DesignDescription));
+        _designTimer.Stop();
+        _designTimer.Start();
+    }
+
+    private async Task ShowDesignAsync()
+    {
+        if (_surface is not { } surface || !IsDesigning || _disposed) return;
+        var design = Design;
+        try
+        {
+            // A new design replaces whatever result was showing; the design is the preview now.
+            if (Current is not null) { Current = null; }
+            IsDesignLive = true;
+            await surface.ShowAsync(ShaderKind.Overlay, design.ToGlsl(), design.UsesPointer, BothScreens && HasSeveralScreens ? ExtendLayout() : null,
+                Controls.StudioPreview.OverlayBackground, null);
+        }
+        catch (Exception ex) when (IsPreviewFailure(ex) || ex is OperationCanceledException)
+        {
+            Log.Warning(ex, "Studio designer preview failed");
+            Message = "The preview couldn't start. Keep the overlay to see it on your desktop, or restart Wavelit.";
+        }
+    }
+
+    [RelayCommand]
+    private void SurpriseDesign()
+    {
+        DesignShape = DesignShapes[_random.Next(DesignShapes.Count)];
+        DesignMotion = DesignMotions[_random.Next(DesignMotions.Count)];
+        DesignCursor = DesignCursors[_random.Next(DesignCursors.Count - 1)];
+        DesignDensity = _random.Next(25, 80);
+        DesignSize = _random.Next(25, 80);
+        DesignSpeed = _random.Next(20, 80);
+        DesignTwinkle = _random.Next(0, 70);
+        DesignWind = _random.Next(10, 90);
+        DesignGlow = _random.Next(0, 70);
+    }
+
+    private bool CanKeepDesign() => !IsBusy;
+
+    /// <summary>Checks the design in the lab like any shader (compile, time, blank test, thumbnail), keeps it and turns it on.</summary>
+    [RelayCommand(CanExecute = nameof(CanKeepDesign))]
+    private async Task KeepDesign()
+    {
+        if (_surface is null) { Message = "The Studio preview isn't ready yet. Try again in a moment."; return; }
+        var design = Design;
+        string code = design.ToGlsl();
+        IsBusy = true;
+        Stage = "Checking it runs smoothly…";
+        Message = null;
+        try
+        {
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+            _surface.BudgetMs = ShaderStudio.BudgetFor(Context.Settings.Current);
+            var check = await new ShaderStudio(_surface, () => _surface?.BudgetMs ?? ShaderStudio.DefaultBudgetMs).CheckAsync(code, ShaderKind.Overlay, _cts.Token);
+            if (!check.Passed)
+            {
+                Message = check.Failure == CheckFailure.TooSlow
+                    ? "That's too heavy for this PC's graphics card. Try fewer particles or less glow."
+                    : "That design couldn't be shown: " + check.Problem;
+                return;
+            }
+            var request = new ShaderRequest(ShaderKind.Overlay, design.Describe(), design.UsesPointer ? Interactivity.Reacts : Interactivity.None);
+            var draft = new ShaderDraft(design.Title, design.Describe(), code, "nature", design.UsesPointer);
+            // Keep replaces the overlay the last Keep made (tweaking shouldn't fill the gallery with near-duplicates).
+            string? previous = _keptDesignOverlayId;
+            Keep(draft, check.Report!, request, OverlayDesign.Author, parentId: null, design);
+            var (id, overlay) = GeneratedShaders.CreateOverlay(_services.Paths, CurrentWithParams!);
+            string? replacedThumb = null;
+            Context.Settings.Update(s =>
+            {
+                var custom = new Dictionary<string, CustomOverlay>(s.CustomOverlays);
+                if (previous is not null && previous != id && s.Interactive.Style == previous && custom.Remove(previous, out var old))
+                    replacedThumb = old.ThumbnailPath;
+                custom[id] = overlay;
+                return s with { CustomOverlays = custom, Interactive = s.Interactive with { Style = id } };
+            });
+            if (replacedThumb is not null && replacedThumb != overlay.ThumbnailPath
+                && Path.GetFullPath(replacedThumb).StartsWith(_services.Paths.Creations + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                try { File.Delete(replacedThumb); } catch (IOException) { }
+            }
+            _keptDesignOverlayId = id;
+            Context.Notify("Overlay on", $"“{overlay.Title}” is over your wallpaper. Keep tweaking here, or fine-tune it on the Overlays page.", NoticeLevel.Success);
+        }
+        catch (OperationCanceledException)
+        {
+            Message = "Stopped.";
+        }
+        catch (Exception ex) when (IsPreviewFailure(ex))
+        {
+            Log.Warning(ex, "Studio: the preview couldn't check the design");
+            Message = PreviewDown;
+        }
+        finally
+        {
+            IsBusy = false;
+            Stage = "";
+        }
+    }
+
+    private void LoadDesign(OverlayDesign d)
+    {
+        d = d.Normalize();
+        DesignShape = DesignShapes.First(c => c.Value == d.Shape);
+        DesignMotion = DesignMotions.First(c => c.Value == d.Motion);
+        DesignCursor = DesignCursors.First(c => c.Value == d.Cursor);
+        (DesignDensity, DesignSize, DesignSpeed, DesignTwinkle, DesignWind, DesignGlow) =
+            (d.Density * 100, d.Size * 100, d.Speed * 100, d.Twinkle * 100, d.Wind * 100, d.Glow * 100);
+        MusicOn = d.Music;
+    }
+
+    // ---------------------------------------------------------------- describe (AI)
+
     private ShaderRequest BuildRequest(bool refine) => new(
         Kind, Prompt.Trim(), SelectedInteractivity.Value, SelectedPalette.Value, SelectedSpeed.Value,
         refine ? Current?.Code : null, refine ? RefineNote.Trim() : null,
         UseRecipe && !Recipe.IsEmpty ? Recipe : null,
-        IsAudioTab ? new MusicReaction(SelectedReactsTo.Value, SelectedReactsBy.Value) : null);
+        MusicOn ? new MusicReaction(SelectedReactsTo.Value, SelectedReactsBy.Value) : null);
 
     private double[]? SliderValues() => Sliders.Count == 0 ? null : Sliders.Select(s => s.Value).ToArray();
 
@@ -440,6 +663,19 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     };
 
     [RelayCommand]
+    private void Choose(StudioMode mode) => Mode = mode;
+
+    [RelayCommand]
+    private void Back()
+    {
+        _cts?.Cancel();
+        Mode = StudioMode.Choose;
+    }
+
+    [RelayCommand]
+    private void ChooseOverlayWay(OverlayWay way) => OverlayWay = way;
+
+    [RelayCommand]
     private void UseIdea(string idea) => Prompt = idea;
 
     [RelayCommand]
@@ -467,7 +703,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanCreate))]
     private Task Create() => RunAsync(BuildRequest(refine: false), parentId: null);
 
-    private bool CanRefine() => !IsBusy && Current is not null && RefineNote.Trim().Length > 0;
+    private bool CanRefine() => !IsBusy && Current is { IsDesigned: false } && RefineNote.Trim().Length > 0;
 
     [RelayCommand(CanExecute = nameof(CanRefine))]
     private Task Refine()
@@ -520,7 +756,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
                 Message = outcome.Problem;
                 return;
             }
-            Keep(outcome.Draft!, outcome.Report!, request, author.Model, parentId);
+            Keep(outcome.Draft!, outcome.Report!, request, author.Model, parentId, design: null);
         }
         catch (OperationCanceledException)
         {
@@ -564,7 +800,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
             Message = ex.Message;
             return;
         }
-        bool refine = Current is not null && RefineNote.Trim().Length > 0;
+        bool refine = Current is { IsDesigned: false } && RefineNote.Trim().Length > 0;
         var request = BuildRequest(refine);
         IsBusy = true;
         Stage = "Checking it runs smoothly…";
@@ -581,7 +817,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
                 return;
             }
             string title = draft.Title == "Untitled" ? TitleFrom(request.Prompt) : draft.Title;
-            Keep(draft with { Title = title }, check.Report!, request, "pasted", refine ? Current!.Id : null);
+            Keep(draft with { Title = title }, check.Report!, request, "pasted", refine ? Current!.Id : null, design: null);
             PastedReply = "";
         }
         catch (OperationCanceledException)
@@ -613,7 +849,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         return char.ToUpperInvariant(t[0]) + t[1..];
     }
 
-    private void Keep(ShaderDraft draft, LabReport report, ShaderRequest request, string model, string? parentId)
+    private void Keep(ShaderDraft draft, LabReport report, ShaderRequest request, string model, string? parentId, OverlayDesign? design)
     {
         var entry = _services.History.Add(new StudioEntry
         {
@@ -633,12 +869,14 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
             ParentId = parentId,
             Recipe = request.Recipe,
             Music = request.Music,
+            Design = design,
         }, report.Thumbnail);
         History.Insert(0, new StudioHistoryItem(entry));
         while (History.Count > StudioHistory.Capacity) History.RemoveAt(History.Count - 1);
         OnPropertyChanged(nameof(HasHistory));
         RefineNote = "";
         ShowCode = false;
+        IsDesignLive = false;
         Current = entry;
     }
 
@@ -650,14 +888,29 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     {
         if (item is null || IsBusy) return;
         var e = item.Entry;
-        SelectedTab = Tabs[e.Kind == ShaderKind.Overlay ? 2 : e.Music is not null ? 3 : 1];
-        LoadRecipe(e);
-        Prompt = e.Prompt;
-        SelectedInteractivity = Interactivities.FirstOrDefault(i => i.Value == e.Interactivity) ?? Interactivities[0];
-        SelectedPalette = Palettes.FirstOrDefault(p => p.Value == e.Palette) ?? Palettes[0];
-        SelectedSpeed = Speeds.FirstOrDefault(s => s.Value == e.Speed) ?? Speeds[1];
+        _loadingEntry = true;
+        try
+        {
+            Mode = e.Kind == ShaderKind.Overlay ? StudioMode.Overlay : StudioMode.Wallpaper;
+            if (e.Design is { } d) { OverlayWay = OverlayWay.Design; LoadDesign(d); }
+            else
+            {
+                OverlayWay = OverlayWay.Describe;
+                LoadRecipe(e);
+                Prompt = e.Prompt;
+                SelectedInteractivity = Interactivities.FirstOrDefault(i => i.Value == e.Interactivity) ?? Interactivities[0];
+                SelectedPalette = Palettes.FirstOrDefault(p => p.Value == e.Palette) ?? Palettes[0];
+                SelectedSpeed = Speeds.FirstOrDefault(s => s.Value == e.Speed) ?? Speeds[1];
+            }
+        }
+        finally
+        {
+            _loadingEntry = false;
+        }
+        _designTimer.Stop();
         Message = null;
         ShowCode = false;
+        IsDesignLive = false;
         Current = e;
     }
 
@@ -671,23 +924,38 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         if (Current?.Id == item.Entry.Id) Current = null;
     }
 
-    /// <summary>Loads a past creation's prompt and options (and recipe) to make a variation, without opening it.</summary>
+    /// <summary>Loads a past creation's idea and options (or design) to make a variation, without opening it.</summary>
     [RelayCommand]
     private void Remix(StudioHistoryItem? item)
     {
         if (item is null || IsBusy) return;
         var e = item.Entry;
-        SelectedTab = Tabs[e.Kind == ShaderKind.Overlay ? 2 : e.Music is not null ? 3 : 1];
-        SelectedInteractivity = Interactivities.FirstOrDefault(i => i.Value == e.Interactivity) ?? Interactivities[0];
-        SelectedPalette = Palettes.FirstOrDefault(p => p.Value == e.Palette) ?? Palettes[0];
-        SelectedSpeed = Speeds.FirstOrDefault(s => s.Value == e.Speed) ?? Speeds[1];
-        LoadRecipe(e);
-        if (!UseRecipe) Prompt = e.Prompt;
-        Message = "Loaded “" + e.Title + "”. Change anything, then Create for a new variation.";
+        _loadingEntry = true;
+        try
+        {
+            Mode = e.Kind == ShaderKind.Overlay ? StudioMode.Overlay : StudioMode.Wallpaper;
+            if (e.Design is { } d) { OverlayWay = OverlayWay.Design; LoadDesign(d); }
+            else
+            {
+                OverlayWay = OverlayWay.Describe;
+                SelectedInteractivity = Interactivities.FirstOrDefault(i => i.Value == e.Interactivity) ?? Interactivities[0];
+                SelectedPalette = Palettes.FirstOrDefault(p => p.Value == e.Palette) ?? Palettes[0];
+                SelectedSpeed = Speeds.FirstOrDefault(s => s.Value == e.Speed) ?? Speeds[1];
+                LoadRecipe(e);
+                if (!UseRecipe) Prompt = e.Prompt;
+            }
+        }
+        finally
+        {
+            _loadingEntry = false;
+        }
+        if (IsDesigning) RequestDesign();
+        Message = e.Design is null ? "Loaded “" + e.Title + "”. Change anything, then Create for a new variation." : null;
     }
 
     private void LoadRecipe(StudioEntry e)
     {
+        MusicOn = e.Music is not null;
         if (e.Music is { } m)
         {
             SelectedReactsTo = ReactsToChoices.FirstOrDefault(c => c.Value == m.ReactsTo) ?? ReactsToChoices[3];
@@ -712,7 +980,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
         ReportNote = "";
         ReportIncludeDetails = false;
         ReportReason = ReportReasons[0];
-        IsReporting = Current is not null;
+        IsReporting = Current is { IsDesigned: false };
     }
 
     /// <summary>Opens a pre-filled GitHub issue in the browser; Wavelit itself sends nothing.</summary>
@@ -721,11 +989,11 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     {
         if (Current is not { } c) return;
         string? details = ReportIncludeDetails ? $"Prompt: {c.Prompt}\n\n{c.Code}" : null;
-        string url = ContentReport.IssueUrl(ReportReason.Value, ReportNote, c.Title, c.Model is "" ? "ai-chat" : c.Model, details,
+        string url = ContentReport.IssueUrl(ReportReason.Value, ReportNote, c.Title, GeneratedShaders.MadeWith(c.Model) ?? "ai-chat", details,
             typeof(StudioViewModel).Assembly.GetName().Version?.ToString() ?? "dev");
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true })?.Dispose();
             Context.Notify("Report opened", "Your browser shows the report. Nothing is sent until you submit it there. Thank you.", NoticeLevel.Success);
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
@@ -805,6 +1073,7 @@ public sealed partial class StudioViewModel : ObservableObject, IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _designTimer.Stop();
         _surface = null;
         _cts?.Cancel();
         _cts?.Dispose();

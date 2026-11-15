@@ -13,6 +13,11 @@ public sealed record AudioFrame(float[] Bands, float Bass, float Mid, float Treb
     bool Beat, float Bpm, int BeatCount, bool Silent)
 {
     public static AudioFrame Quiet { get; } = new(new float[AudioAnalyzer.BandCount], 0, 0, 0, 0, 0.5f, false, 0, 0, true);
+
+    /// <summary>Seconds the music clock (<see cref="MusicClock"/>) is ahead of real time.</summary>
+    public double MusicExtra { get; init; }
+    /// <summary>The music clock's current pace (1 = real time).</summary>
+    public float Pace { get; init; } = 1;
 }
 
 /// <summary>

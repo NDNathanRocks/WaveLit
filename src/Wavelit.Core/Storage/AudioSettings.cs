@@ -35,9 +35,12 @@ public sealed partial record AudioSettings(bool Enabled = true, double Sensitivi
         Sensitivity = double.IsFinite(Sensitivity) ? Math.Clamp(Sensitivity, 0, 1) : 0.5,
     };
 
-    /// <summary>Shader code that reads the music (the runtime decides from the same uniforms).</summary>
+    /// <summary>
+    /// Shader code that reads the music: the audio uniforms, or the overlay helpers built on them (ilMusic, ilBeat,
+    /// ilAudio, wavelitMusic). Must agree with AUDIO_UNIFORMS in Web/shader-runtime.js and Web/studio.js.
+    /// </summary>
     public static bool CodeUsesAudio(string? code) => code is not null && AudioUniforms().IsMatch(code);
 
-    [GeneratedRegex(@"\b(iAudio|iBeat|iSpectrum|iPeaks|iCentroid|iAudioPresence)\b")]
+    [GeneratedRegex(@"\b(iAudio|iBeat|iSpectrum|iPeaks|iCentroid|iAudioPresence|wavelitMusic|ilMusic|ilBeat|ilAudio)\b")]
     private static partial Regex AudioUniforms();
 }

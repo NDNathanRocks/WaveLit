@@ -88,13 +88,16 @@ internal sealed class WallpaperHost : IDisposable
     /// Never for web pages (they're third-party content and get no input from Wavelit).
     /// </summary>
     public bool NeedsPointer => !_disposed && LoadedItemId is not null && _kind is not (null or WallpaperKind.Web)
-        && (_shaderUsesPointer || _options?.OverlayUsesPointer(_itemId) == true);
+        && (_shaderUsesPointer || _options?.OverlayUsesPointer(_itemId) == true || HasWidgets && _options!.Desktop.UsesPointer);
 
     /// <summary>
-    /// The page listens to the music: an audio shader, or an overlay that reacts to it. Never for web pages.
+    /// The page listens to the music: an audio shader, an overlay that reacts to it, or widgets that pulse. Never for web pages.
     /// </summary>
     public bool NeedsAudio => !_disposed && LoadedItemId is not null && _kind is not (null or WallpaperKind.Web)
-        && _options?.Audio.Enabled == true && (_shaderUsesAudio || _options.OverlayUsesAudio(_itemId));
+        && _options?.Audio.Enabled == true && (_shaderUsesAudio || _options.OverlayUsesAudio(_itemId) || HasWidgets && _options.Desktop.UsesAudio);
+
+    /// <summary>This window draws at least one widget (some of its monitors carry one).</summary>
+    private bool HasWidgets => _options is { Desktop.WidgetsOn: true } o && Monitors.Any(m => o.Desktop.On(m, o.MonitorIds).Any());
 
     /// <summary>Raised when the renderer reports an error or crashes (message is user-facing).</summary>
     public event EventHandler<string>? Failed;
@@ -299,6 +302,8 @@ internal sealed class WallpaperHost : IDisposable
             bpm = f.Bpm,
             n = f.BeatCount,
             silent = f.Silent,
+            mt = Math.Round(f.MusicExtra, 3),   // the music clock (MusicClock): shared by every Extend slice
+            pace = Math.Round(f.Pace, 3),
         });
     }
 
@@ -554,7 +559,7 @@ internal sealed class WallpaperHost : IDisposable
         smoothLoop = o.SmoothLoop,
         interactive = OverlayOptions(o.OverlayOf(_itemId), o),
         audio = new { sensitivity = o.Audio.Sensitivity, reduceFlashing = o.Audio.ReduceFlashing },
-        widgets = new { items = WidgetOptions(o) },
+        widgets = new { items = WidgetOptions(o), follow = o.Desktop.FollowCursor, pulse = o.Desktop.PulseWithMusic && o.Audio.Enabled },
     };
 
     /// <summary>
@@ -590,6 +595,8 @@ internal sealed class WallpaperHost : IDisposable
         response = i.Response,
         opacity = i.Opacity,
         music = i.Music && o.Audio.Enabled,
+        // Made for music (Resonant Stardust, Studio music overlays): listens even with "Move with the music" off.
+        audioStyle = o.Audio.Enabled && (InteractiveSettings.AudioStyles.Contains(i.Style) || o.CustomOf(i) is { } c && AudioSettings.CodeUsesAudio(c.Code)),
         @params = o.CustomOf(i)?.Params,
     };
 

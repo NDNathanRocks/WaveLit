@@ -84,11 +84,17 @@ public partial class App : Application
                 Displays = new DisplayAssignments { SharedItemId = BuiltInShaders.DefaultItemId },
             });
         }
-        StartupRegistration.Apply(settings.Current.StartWithWindows);
-        settings.Changed += (_, s) => StartupRegistration.Apply(s.StartWithWindows);
-
         var wallpapers = _services.GetRequiredService<WallpaperService>();
         _tray = new TrayService(wallpapers, _services.GetRequiredService<LibraryStore>(), OpenDashboard, () => _ = QuitAsync());
+        bool startWithWindows = settings.Current.StartWithWindows;
+        // Settings change on any thread; the tray notification belongs on the UI thread.
+        settings.Changed += (_, s) =>
+        {
+            if (s.StartWithWindows == startWithWindows) return;
+            startWithWindows = s.StartWithWindows;
+            Dispatcher.BeginInvoke(() => _ = ApplyStartupAsync(s.StartWithWindows, notify: true));
+        };
+        _ = ApplyStartupAsync(startWithWindows, notify: false);
         wallpapers.Error += (_, message) => _tray.Notify("Wavelit", message);
         if (!e.Args.Contains("--no-wallpaper")) await wallpapers.StartAsync(); // --no-wallpaper: dashboard-only diagnostics
         _services.GetRequiredService<TaskbarService>().Start();
@@ -108,9 +114,33 @@ public partial class App : Application
         _services.GetRequiredService<DayNightService>().Start();
         _services.GetRequiredService<LocalAiService>().ResumeIfWanted();
         if (firstRun) ShowWelcome(paths);
-        else if (!e.Args.Contains(StartupRegistration.BackgroundArg)) OpenDashboard();
+        else if (!e.Args.Contains(StartupRegistration.BackgroundArg) && !StartedByWindows()) OpenDashboard();
 
         SessionEnding += (_, _) => _ = QuitAsync();
+    }
+
+    /// <summary>The Store build's StartupTask launches with no arguments: treat that activation as --background.</summary>
+    private static bool StartedByWindows()
+    {
+        if (!Packaging.IsPackaged) return false;
+        try
+        {
+            return global::Windows.ApplicationModel.AppInstance.GetActivatedEventArgs()?.Kind == global::Windows.ApplicationModel.Activation.ActivationKind.StartupTask;
+        }
+        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException or InvalidOperationException or TypeLoadException)
+        {
+            Log.Debug(ex, "Activation kind unavailable");
+            return false;
+        }
+    }
+
+    private async Task ApplyStartupAsync(bool enabled, bool notify)
+    {
+        var problem = await StartupRegistration.ApplyAsync(enabled);
+        if (problem == StartupProblem.None || !notify || _tray is null) return;
+        _tray.Notify("Start with Windows", problem == StartupProblem.DisabledByWindows
+            ? "Windows has Wavelit's startup entry turned off. Turn it on in Settings → Apps → Startup."
+            : "Windows didn't accept the change. You can set it in Settings → Apps → Startup.");
     }
 
     private static ServiceProvider ConfigureServices(AppPaths paths)

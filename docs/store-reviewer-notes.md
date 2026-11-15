@@ -6,7 +6,7 @@ Paste the following into **Partner Center → Submission → Notes for certifica
 
 Wavelit is a live-wallpaper app. It shows videos, images, animated shaders or web pages *behind the desktop icons*, in place of the static Windows wallpaper.
 
-**How it does this.** At startup Wavelit creates one borderless child window per monitor and parents it into the desktop's wallpaper layer, using the standard `Progman`/`WorkerW` technique that other Store wallpaper apps also use. Those windows are visible wallpaper content. They take no input (clicks go to the desktop icons), aren't hidden from the user, and never cover other apps. Wavelit doesn't inject code into Explorer or any other process, never elevates, and declares only `runFullTrust` and `unvirtualizedResources` (justified below).
+**How it does this.** At startup Wavelit creates one borderless child window per monitor and parents it into the desktop's wallpaper layer, using the standard `Progman`/`WorkerW` technique that other Store wallpaper apps also use. Those windows are visible wallpaper content. They take no input (clicks go to the desktop icons), aren't hidden from the user, and never cover other apps. Wavelit doesn't inject code into Explorer or any other process, never elevates, and declares only `runFullTrust`. Start-with-Windows uses the package's `windows.startupTask` (off until the user turns it on in the app; visible under Settings → Apps → Startup).
 
 **Helper process.** The Studio's Picture tab starts `Wavelit.Create.exe`, which ships inside this package. It sharpens images, and optionally generates them with a local AI model. It runs only while the user is creating and exits after two idle minutes.
 
@@ -18,8 +18,7 @@ Wavelit is a live-wallpaper app. It shows videos, images, animated shaders or we
 
 1. Launch Wavelit. A short setup appears: pick a wallpaper (it changes live behind the window), then **Get started**. No account or key is needed.
 2. **Discover**: the home page is curated (Wavelit's shaders, then hand-picked Featured wallpapers); the mood chips (Nature, Space, …) show curated feeds. Search "mountains" or "earth" for results from Wallhaven, Wikimedia Commons, NASA and Openverse, all with no keys. Hover a card and click **Set as wallpaper**.
-3. **Studio → Picture**: type a description, choose **Quick try**, then **Create**. Pick a result. It's sharpened to the screen size and set as the wallpaper.
-   **Studio → Live wallpaper / Overlay** writes animated shaders with AI. With no key, choose **Any AI chat**: **Copy prompt**, paste it into any chat AI, paste the answer back, then **Check & preview**. Claude and Cloudflare need the user's own key (bring-your-own-key; the app has no backend and ships no keys). AI output is GLSL only, run through WebGL `shaderSource` in the sandboxed WebView2 after a static check, a compile and a timed GPU test; it is never JavaScript and is never applied without the user's click.
+3. **Studio** opens on three choices. **Picture**: type a description, choose **Quick try**, then **Create**; pick a result and it's sharpened to the screen size and set as the wallpaper. **Overlay → Design it** needs nothing: pick a shape, motion and cursor behaviour, watch the live preview, then **Keep this overlay** (no AI involved; not labelled "Made with AI"). **Live wallpaper**, and **Overlay → Describe it to an AI**, write animated shaders with AI. With no key, open **Options → Written by** and choose **Any AI chat**: **Copy prompt**, paste it into any chat AI, paste the answer back, then **Check & preview**. Claude and Cloudflare need the user's own key (bring-your-own-key; the app has no backend and ships no keys). AI output is GLSL only, run through WebGL `shaderSource` in the sandboxed WebView2 after a static check, a compile and a timed GPU test; it is never JavaScript and is never applied without the user's click.
 4. **Displays**: with two or more monitors, **Extend** continues one picture across all screens. **Framing** lets you drag and zoom it.
 5. **Overlays** (Overlays page, or the setup screen): choose **Stardust** or any other card, then move the mouse over an empty part of the desktop. The particles part around the cursor; a click sends out a burst. Wavelit reads the cursor position with `GetCursorPos` only while the wallpaper is visible (no hooks, no keyboard), and only reacts over the bare desktop.
 6. Open any app fullscreen (for example press F11 in Edge). Wavelit pauses itself and CPU/GPU use drops to about zero. It resumes when you return to the desktop.
@@ -42,14 +41,9 @@ Wavelit is a live-wallpaper app. It shows videos, images, animated shaders or we
 
 **How to test the new features without a key.**
 - *Music:* Discover → search "neon" or "space" → apply **Neon Bars**, **Synthwave Drive** or **Resonant Stardust**, then play any music. In silence they idle calmly. Overlays → **Resonant Stardust**, or turn on "Move with the music" for any overlay.
-- *Studio → Music tab:* pick "Any AI chat (free)", copy the prompt, paste a reply. The preview plays a built-in demo beat; nothing is heard.
-- *Desktop page:* turn on "Widgets on the desktop", pick a theme, then drag the clock in the preview. The real desktop updates. Taskbar: "Centred/Left" uses Windows' own setting and is restored when Wavelit quits. The see-through looks (Clear, Tinted, Glass, Acrylic) only configure TranslucentTB, a separate free Store app, if the user has installed it; Wavelit offers a Store link otherwise and never injects into Explorer.
+- *Studio, music:* turn on "Reacts to music" (describe) or "Moves to the music" (Overlay Designer). The preview plays a built-in demo beat; nothing is heard.
+- *Desktop page:* turn on "Widgets on the desktop", pick a theme, then drag the clock in the preview. The real desktop updates. Widgets can also lean towards the cursor and pulse with music (both optional). The taskbar section of this page is hidden in the Store build: the source build's taskbar options write Explorer's per-user settings and TranslucentTB's settings file, which MSIX virtualization redirects, so the packaged app explains where to find those settings in Windows instead. Wavelit never injects into Explorer.
 
-**Restricted capability `unvirtualizedResources` (justification).** Wavelit is a desktop personalisation app. At the user's request it changes per-user settings that belong to Windows and to another app:
-- the taskbar icon alignment (`HKCU\…\Explorer\Advanced\TaskbarAl`);
-- start-with-Windows (`HKCU\…\Run`, through the `wavelit.exe` execution alias);
-- TranslucentTB's `settings.json`, for a see-through taskbar (only when the user picks a look).
-
-With MSIX write virtualization these changes would land in a private copy and have no effect. Every change is opt-in, the previous values are saved first, and they are restored when the feature is turned off (the taskbar settings also on quit). Wavelit's own data stays in `%LOCALAPPDATA%\Wavelit`.
+**Capabilities.** `runFullTrust` only. No restricted capabilities are requested; Wavelit's own data stays in its package data folder.
 
 **Privacy.** No telemetry, no account. Network requests go only to the services the user uses (listed in the privacy policy). Privacy policy: https://ndnathanrocks.github.io/WaveLit/privacy-policy

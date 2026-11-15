@@ -251,6 +251,31 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Motion: the widgets react a little, like the overlays do -->
+                    <Border Margin="0,14,0,0" CornerRadius="10" Padding="16,12,16,16" BorderThickness="1"
+                            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <ui:SymbolIcon Symbol="CursorHover24" Margin="0,0,8,0" />
+                                <TextBlock Text="Alive" FontSize="16" FontWeight="SemiBold" />
+                            </StackPanel>
+                            <Grid Margin="0,12,0,0">
+                                <StackPanel Margin="0,0,60,0">
+                                    <TextBlock Text="Lean towards the cursor" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="A gentle tilt of a few pixels as your mouse crosses the desktop; nothing moves while an app is in front." />
+                                </StackPanel>
+                                <ui:ToggleSwitch HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding FollowCursor}" AutomationProperties.Name="Widgets lean towards the cursor" />
+                            </Grid>
+                            <Grid Margin="0,12,0,0">
+                                <StackPanel Margin="0,0,60,0">
+                                    <TextBlock Text="Pulse with the music" FontWeight="SemiBold" />
+                                    <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap" Text="A soft swell on each beat of whatever your PC plays. Never the microphone; nothing is recorded." />
+                                </StackPanel>
+                                <ui:ToggleSwitch HorizontalAlignment="Right" VerticalAlignment="Center" IsChecked="{Binding PulseWithMusic}" AutomationProperties.Name="Widgets pulse with the music" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Taskbar -->
                     <Border Margin="0,14,0,0" CornerRadius="10" Padding="16,12,16,16" BorderThickness="1"
                             Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
@@ -259,6 +284,11 @@
                                 <ui:SymbolIcon Symbol="WindowWrench24" Margin="0,0,8,0" />
                                 <TextBlock Text="Taskbar" FontSize="16" FontWeight="SemiBold" />
                             </StackPanel>
+                            <!-- Store build: Windows keeps packaged apps from changing Explorer's and other apps' settings. -->
+                            <TextBlock Style="{StaticResource Caption}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Visibility="{Binding TaskbarUnavailable, Converter={StaticResource BoolToVisibility}}"
+                                       Text="The Store version of Wavelit can't change the taskbar: Windows keeps Store apps from editing Explorer's settings. Icon position is in Settings → Personalisation → Taskbar, and TranslucentTB (free, on the Store) makes it clear or glass." />
+                            <StackPanel Visibility="{Binding TaskbarAvailable, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Icons" Style="{StaticResource PanelLabel}" />
                             <ComboBox ItemsSource="{Binding TaskbarAligns}" DisplayMemberPath="Label" SelectedItem="{Binding TaskbarAlign}" AutomationProperties.Name="Taskbar icons" />
 
@@ -308,6 +338,7 @@
                                        Text="{Binding TaskbarProblem}" Visibility="{Binding HasTaskbarProblem, Converter={StaticResource BoolToVisibility}}" />
                             <TextBlock Style="{StaticResource Caption}" Margin="0,12,0,0"
                                        Text="Icon position uses Windows' own setting; no admin rights are needed." />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>

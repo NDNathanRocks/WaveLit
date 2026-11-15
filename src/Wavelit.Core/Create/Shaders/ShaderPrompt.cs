@@ -78,6 +78,9 @@ public static class ShaderPrompt
             float ilEnv(float age, float life);   // grows in over 0.15 s, settles by `life`
             vec2 ilPush(vec2 pos, float radius, float limit);  // offset away from the cursor, trail and clicks, length <= limit
             vec2 ilSwirl(vec2 pos, float radius, float angle); // pos rotated around the cursor
+            float ilMusic();   // like ilTime(), but runs faster with loud music and surges on beats: use it for particle motion so the overlay moves to the music when the user turns that on (real time otherwise)
+            float ilBeat();    // beat pulse 0..1 (0 when music is off)
+            float ilAudio();   // loudness 0..1 (0 when music is off)
             vec4 ilOut(vec3 colour, float alpha);
         - Particles must be stateless: hash a grid cell for each particle's home and animate it as a function of time. Search the 3x3 neighbouring cells and keep any displacement smaller than one cell.
 
@@ -101,7 +104,7 @@ public static class ShaderPrompt
         // Wandering glows that drift, circle the cursor and scatter on a click.
         void mainImage(out vec4 o, in vec2 fc) {
           vec2 q = ilSpace(fc);
-          float amt = ilAmount(), t = ilTime() * iParams.x, sz = ilSize() * iParams.y;
+          float amt = ilAmount(), t = ilMusic() * iParams.x, sz = ilSize() * iParams.y;
           vec2 c = ilPtr();
           float pres = ilPresence();
           float a = 0.0;

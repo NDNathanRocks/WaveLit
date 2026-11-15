@@ -48,6 +48,21 @@ public class DesktopTests
     }
 
     [Fact]
+    public void Widget_motion_is_off_by_default_and_needs_widgets_on()
+    {
+        var d = new DesktopSettings().Normalize();
+        Assert.False(d.FollowCursor);
+        Assert.False(d.PulseWithMusic);
+        Assert.False(d.UsesPointer);
+        Assert.False(d.UsesAudio);
+        Assert.False((d with { FollowCursor = true, PulseWithMusic = true }).UsesPointer);   // widgets are still off
+        var on = d with { WidgetsOn = true, FollowCursor = true, PulseWithMusic = true };
+        Assert.True(on.UsesPointer);
+        Assert.True(on.UsesAudio);
+        Assert.False((on with { Widgets = [] }).Normalize().UsesPointer);   // nothing to move
+    }
+
+    [Fact]
     public void Widgets_normalize_hostile_values()
     {
         var w = new DesktopWidget("bad id!", "script", X: double.NaN, Y: 9, Align: "justify", Font: "Comic Sans", Weight: 1234,
